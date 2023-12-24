@@ -1,0 +1,3 @@
+[submodule "SettingsGenerator"]
+	path = SettingsGenerator
+	url = https://github.com/Mebebonk/SettingsGenerator

@@ -6,6 +6,9 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramNeuralServerAPI;
+using System.Drawing;
+using Emgu.CV;
+using Emgu.CV.Structure;
 
 
 namespace TelegramNeuralServerAPI
@@ -37,6 +40,8 @@ namespace TelegramNeuralServerAPI
 			_botClient.StartReceiving(UpdateHandler, ErrorHandler, _receiverOptions, cts.Token);
 
 			var me = await _botClient.GetMeAsync();
+			await LocalBotFunctional.CreateCommands(_botClient, cts.Token);
+
 			Console.WriteLine($"{me.FirstName} запущен!");
 
 			await Task.Delay(-1);
@@ -51,28 +56,12 @@ namespace TelegramNeuralServerAPI
 				{
 					case UpdateType.Message:
 						{
-							try
-							{
-								var msg = update.Message;
-								var message = update.Message;
+							//TODO: check synch
+							new LocalBotUpdate(botClient, update, cancellationToken).RealiseMessage();
 
-								var photos = message!.Photo;
-								if (photos == null) { Errors.NoPhotoFoundError(botClient, update, cancellationToken); return; }
-
-								var photo = photos.Last();
-								if (photo == null) { Errors.NoPhotoFoundError(botClient, update, cancellationToken); return; }
-
-								var photoId = photo.FileId;
-								var filePath = await botClient.GetFileAsync(photoId, cancellationToken);
-
-								MemoryStream stream = new();
-
-								await botClient.DownloadFileAsync(filePath.FilePath!, stream, cancellationToken);
-
-								return;
-							}
-							catch (NullReferenceException ex) { Console.WriteLine(ex.ToString()); return; }
+							return;
 						}
+
 				}
 			}
 			catch (Exception ex)

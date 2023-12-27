@@ -16,8 +16,4 @@
     <ProjectReference Include="..\CustomSettingsGenerator\CustomSettingsGenerator.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="source\requests\" />
-  </ItemGroup>
-
 </Project>

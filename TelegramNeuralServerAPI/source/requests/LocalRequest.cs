@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace TelegramNeuralServerAPI
 {
-	public interface IAPIHelper
+	internal class LocalRequest(LocalImage[] images, string[] unitTypes)
 	{
-		public void InformNoToken();
-		public void InformNoUrl();
+		public LocalImage[] images = images;
+		public string[] unitTypes = unitTypes; 
 	}
 }

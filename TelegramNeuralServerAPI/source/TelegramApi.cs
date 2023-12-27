@@ -22,6 +22,8 @@ namespace TelegramNeuralServerAPI
 
 		private readonly ReceiverOptions _receiverOptions;
 
+		private readonly UserData _userData = new();
+
 		public TelegramApi(IAPIHelper? helper = null)
 		{
 			this.LoadSettings();
@@ -56,8 +58,7 @@ namespace TelegramNeuralServerAPI
 				{
 					case UpdateType.Message:
 						{
-							//TODO: check synch
-							new LocalBotUpdate(botClient, update, cancellationToken).RealiseMessage();
+							await new LocalBotUpdate(botClient, update, _userData.GetUser(update.Message!.From!.Id), cancellationToken).RealiseMessage();
 
 							return;
 						}
@@ -83,5 +84,7 @@ namespace TelegramNeuralServerAPI
 			Console.WriteLine(ErrorMessage);
 			return Task.CompletedTask;
 		}
+
+
 	}
 }

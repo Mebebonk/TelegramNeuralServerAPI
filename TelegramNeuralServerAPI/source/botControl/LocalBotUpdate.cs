@@ -8,16 +8,16 @@ using Telegram.Bot;
 
 namespace TelegramNeuralServerAPI
 {
-	internal class LocalBotUpdate(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+	internal class LocalBotUpdate(ITelegramBotClient botClient, Update update, Task<LocalUserConfig> userCfg, CancellationToken cancellationToken)
 	{
 
-		public void RealiseMessage()
+		public async Task RealiseMessage()
 		{
 			try
 			{
 				Message message = update.Message!;
 				
-				if (message.Text?.First() == '/') { RealiseCommand(); return; }
+				if (message.Text?.First() == '/') { await RealiseCommand(); return; }
 
 				//TODO: edgecase: photo comentary '/'!!!
 
@@ -32,7 +32,7 @@ namespace TelegramNeuralServerAPI
 			catch (NullReferenceException ex) { Console.WriteLine(ex.ToString()); return; }
 		}
 
-		private void RealiseCommand()
+		private async Task RealiseCommand()
 		{
 			string newCommand = update.Message.Text.Replace("/","");
 

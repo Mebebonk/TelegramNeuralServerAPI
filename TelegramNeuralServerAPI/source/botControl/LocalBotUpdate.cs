@@ -8,9 +8,9 @@ using Telegram.Bot;
 
 namespace TelegramNeuralServerAPI
 {
-	internal class LocalBotUpdate(ITelegramBotClient botClient, Update update, Task<LocalUserConfig> userCfg, CancellationToken cancellationToken)
+	internal class LocalBotUpdate(ITelegramBotClient botClient, Update update, Task<LocalUserConfig> userCfg, HttpRequestHandler requestHandler, CancellationToken cancellationToken)
 	{
-
+		
 		public async Task RealiseMessage()
 		{
 			try

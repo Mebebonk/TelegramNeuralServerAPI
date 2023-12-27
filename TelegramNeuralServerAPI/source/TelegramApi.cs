@@ -19,9 +19,9 @@ namespace TelegramNeuralServerAPI
 		[SaveLoad]
 		private readonly string _token = "";
 		private readonly ITelegramBotClient _botClient;
-
 		private readonly ReceiverOptions _receiverOptions;
 
+		private readonly HttpRequestHandler _requestHandler;
 		private readonly UserData _userData = new();
 
 		public TelegramApi(IAPIHelper? helper = null)
@@ -29,6 +29,7 @@ namespace TelegramNeuralServerAPI
 			this.LoadSettings();
 
 			if (string.IsNullOrEmpty(_token)) { helper?.InformNoToken(); Environment.Exit(0); };
+			_requestHandler = new(helper);
 
 			_botClient = new TelegramBotClient(_token);
 			_receiverOptions = new ReceiverOptions { AllowedUpdates = [UpdateType.Message], ThrowPendingUpdates = true };
@@ -58,7 +59,7 @@ namespace TelegramNeuralServerAPI
 				{
 					case UpdateType.Message:
 						{
-							await new LocalBotUpdate(botClient, update, _userData.GetUser(update.Message!.From!.Id), cancellationToken).RealiseMessage();
+							await new LocalBotUpdate(botClient, update, _userData.GetUser(update.Message!.From!.Id), _requestHandler, cancellationToken).RealiseMessage();
 
 							return;
 						}

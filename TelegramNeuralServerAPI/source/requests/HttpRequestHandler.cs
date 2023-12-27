@@ -15,7 +15,7 @@ namespace TelegramNeuralServerAPI
 		static readonly HttpClient client = new();
 		[SaveLoad]
 		private readonly string _url = "";
-		public HttpRequestHandler(IAPIHelper helper)
+		public HttpRequestHandler(IAPIHelper? helper = null)
 		{
 			this.LoadSettings();
 			if (String.IsNullOrEmpty(_url)) { helper?.InformNoUrl(); Environment.Exit(0); }

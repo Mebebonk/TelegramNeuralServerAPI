@@ -14,5 +14,11 @@ namespace CLIServer
 			Console.WriteLine("No token found!");
 			Console.Read();
 		}
+
+		public void InformNoUrl()
+		{
+			Console.WriteLine("No url found!");
+			Console.Read();
+		}
 	}
 }

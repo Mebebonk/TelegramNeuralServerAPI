@@ -21,15 +21,15 @@ namespace TelegramNeuralServerAPI
 			if (String.IsNullOrEmpty(_url)) { helper?.InformNoUrl(); Environment.Exit(0); }
 		}
 
-		public string LaunchProcess(LocalRequest localRequest)
+		public async Task<string> LaunchProcess(LocalRequest localRequest)
 		{
 			using HttpRequestMessage request = new(HttpMethod.Post, _url + "/infer");
-
 			string parsedImageList = JsonSerializer.Serialize(localRequest);
-			request.Content = new StringContent(parsedImageList);
 
-			HttpResponseMessage response = client.Send(request);
-			string? returnString = response.Content.ToString();
+			request.Content = new StringContent(parsedImageList, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"));
+
+			HttpResponseMessage response = await client.SendAsync(request);
+			string? returnString = await response.Content.ReadAsStringAsync();
 
 			return returnString == null ? "response fail" : returnString!;
 		}

@@ -10,13 +10,13 @@ namespace TelegramNeuralServerAPI
 {
 	internal class LocalBotUpdate(ITelegramBotClient botClient, Update update, Task<LocalUserConfig> userCfg, HttpRequestHandler requestHandler, CancellationToken cancellationToken)
 	{
-		
+
 		public async Task RealiseMessage()
 		{
 			try
 			{
 				Message message = update.Message!;
-				
+
 				if (message.Text?.First() == '/') { await RealiseCommand(); return; }
 
 				//TODO: edgecase: photo comentary '/'!!!
@@ -34,27 +34,26 @@ namespace TelegramNeuralServerAPI
 
 		private async Task RealiseCommand()
 		{
-			string newCommand = update.Message.Text.Replace("/","");
+			string newCommand = update.Message!.Text!.Replace("/", "");
 
 			switch (newCommand)
 			{
 				case "launch":
-					{
-						//TODO: check current settings and launch
-						return;
-					}
+					LocalUserConfig config = await userCfg;
+					string a = await requestHandler.LaunchProcess(new([new LocalImage(1,1,3,"data")], ["lul"]));
+					await botClient.SendTextMessageAsync(update.Message.From!.Id, a, cancellationToken: cancellationToken);
+					return;
+
 				case "settings":
-					{
-						//TODO: set per-user launch settings through poll
-						return;
-					}
+					var poll = await botClient.SendPollAsync(update.Message.From!.Id, "Choose processess:", ["a", "b"], allowsMultipleAnswers: true, cancellationToken: cancellationToken);
+					return;
+
 				case "help":
-					{
-						//TODO: SUDU
-						return;
-					}
+					//TODO: SUDU
+					return;
+
 			}
-		
+
 		}
 
 	}

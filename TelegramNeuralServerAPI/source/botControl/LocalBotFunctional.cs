@@ -31,22 +31,3 @@ namespace TelegramNeuralServerAPI
 
 	}
 }
-/*              var photoId = photo.FileId;
-				var filePath = await botClient.GetFileAsync(photoId, cancellationToken);
-
-				MemoryStream stream = new();
-
-				await botClient.DownloadFileAsync(filePath.FilePath!, stream, cancellationToken);
-
-				Mat mat = new();
-				CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
-
-				var img = mat.ToImage<Rgb, byte>();
-				img.Draw(new Rectangle(0, 0, img.Size.Width / 2, img.Size.Height / 2), new Rgb(System.Drawing.Color.Aqua));
-
-				FileStream file = new("testLul.txt", FileMode.Create);
-
-				StreamWriter stream1 = new(file);
-				stream1.Write(Convert.ToBase64String(stream.ToArray()));
-				var success = CvInvoke.Imwrite("test.png", img);
-*/

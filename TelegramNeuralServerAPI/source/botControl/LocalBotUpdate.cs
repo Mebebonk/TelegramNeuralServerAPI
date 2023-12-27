@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Telegram.Bot.Types;
 using Telegram.Bot;
+using Emgu.CV;
+using Emgu.CV.Structure;
 
 namespace TelegramNeuralServerAPI
 {
@@ -32,6 +34,17 @@ namespace TelegramNeuralServerAPI
 			catch (NullReferenceException ex) { Console.WriteLine(ex.ToString()); return; }
 		}
 
+		public async Task RealiseVote()
+		{
+			try
+			{				
+				LocalUserConfig user = await userCfg;
+
+				user.simpleProcessess = ProcessConverter.ConvertPollToBytes(update.PollAnswer!.OptionIds);
+			}
+			catch (NullReferenceException ex) { Console.WriteLine(ex.ToString()); return; }
+		}
+
 		private async Task RealiseCommand()
 		{
 			string newCommand = update.Message!.Text!.Replace("/", "");
@@ -39,13 +52,25 @@ namespace TelegramNeuralServerAPI
 			switch (newCommand)
 			{
 				case "launch":
+					FileStream fs = new("ng.jpg", FileMode.Open);
+					MemoryStream stream = new();
+					fs.CopyTo(stream);
+
+
+					Mat mat = new();
+					CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
+
+					var img = mat.ToImage<Rgb, byte>();
+
 					LocalUserConfig config = await userCfg;
-					string a = await requestHandler.LaunchProcess(new([new LocalImage(1,1,3,"data")], ["lul"]));
+					string a = await requestHandler.LaunchProcess(new([new LocalImage((ushort)img.Width, (ushort)img.Height, (byte)img.NumberOfChannels, Convert.ToBase64String(img.Bytes))], ["AGE_ESTIMATOR"]));
 					await botClient.SendTextMessageAsync(update.Message.From!.Id, a, cancellationToken: cancellationToken);
+					fs.Dispose();
 					return;
 
 				case "settings":
-					var poll = await botClient.SendPollAsync(update.Message.From!.Id, "Choose processess:", ["a", "b"], allowsMultipleAnswers: true, cancellationToken: cancellationToken);
+					var message = await botClient.SendPollAsync(update.Message.From!.Id, "Choose processess:", ProcessConverter.simplePollAnswers, allowsMultipleAnswers: true, isAnonymous: false, cancellationToken: cancellationToken);
+
 					return;
 
 				case "help":

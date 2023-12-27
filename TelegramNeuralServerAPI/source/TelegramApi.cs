@@ -32,7 +32,7 @@ namespace TelegramNeuralServerAPI
 			_requestHandler = new(helper);
 
 			_botClient = new TelegramBotClient(_token);
-			_receiverOptions = new ReceiverOptions { AllowedUpdates = [UpdateType.Message], ThrowPendingUpdates = true };
+			_receiverOptions = new ReceiverOptions { AllowedUpdates = [UpdateType.Message, UpdateType.PollAnswer, UpdateType.Poll], ThrowPendingUpdates = true };
 		}
 
 		public async Task LaunchBot()
@@ -63,7 +63,13 @@ namespace TelegramNeuralServerAPI
 
 							return;
 						}
+					case UpdateType.PollAnswer:
+						{	
+							
+							await new LocalBotUpdate(botClient, update, _userData.GetUser(update.PollAnswer!.User.Id), _requestHandler, cancellationToken).RealiseVote();
 
+							return;
+						}					
 				}
 			}
 			catch (Exception ex)

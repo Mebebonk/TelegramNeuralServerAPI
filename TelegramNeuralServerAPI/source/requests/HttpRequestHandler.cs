@@ -21,14 +21,17 @@ namespace TelegramNeuralServerAPI
 			if (String.IsNullOrEmpty(_url)) { helper?.InformNoUrl(); Environment.Exit(0); }
 		}
 
-		public void LaunchProcess(LocalRequest localRequest)
+		public string LaunchProcess(LocalRequest localRequest)
 		{
 			using HttpRequestMessage request = new(HttpMethod.Post, _url + "/infer");
-			
+
 			string parsedImageList = JsonSerializer.Serialize(localRequest);
 			request.Content = new StringContent(parsedImageList);
-			
+
 			HttpResponseMessage response = client.Send(request);
+			string? returnString = response.Content.ToString();
+
+			return returnString == null ? "response fail" : returnString!;
 		}
 	}
 }

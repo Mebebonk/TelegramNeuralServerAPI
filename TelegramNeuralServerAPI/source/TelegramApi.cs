@@ -43,7 +43,7 @@ namespace TelegramNeuralServerAPI
 			_botClient.StartReceiving(UpdateHandler, ErrorHandler, _receiverOptions, cts.Token);
 
 			var me = await _botClient.GetMeAsync();
-			await LocalBotFunctional.CreateCommands(_botClient, cts.Token);
+			await CreateCommands(_botClient, cts.Token);
 
 			Console.WriteLine($"{me.FirstName} запущен!");
 
@@ -64,12 +64,12 @@ namespace TelegramNeuralServerAPI
 							return;
 						}
 					case UpdateType.PollAnswer:
-						{	
-							
+						{
+
 							await new LocalBotUpdate(botClient, update, _userData.GetUser(update.PollAnswer!.User.Id), _requestHandler, cancellationToken).RealiseVote();
 
 							return;
-						}					
+						}
 				}
 			}
 			catch (Exception ex)
@@ -91,7 +91,17 @@ namespace TelegramNeuralServerAPI
 			Console.WriteLine(ErrorMessage);
 			return Task.CompletedTask;
 		}
+		private static async Task CreateCommands(ITelegramBotClient botClient, CancellationToken cancellationToken)
+		{
+			BotCommand[] commands =
+				[
+					new() { Command = "settings", Description = "View list of availiable processess" },
+					new() { Command = "launch", Description = "Launch process(ess)" },
+					new() { Command = "help", Description = "Get bot help" }
+				];
 
+			await botClient.SetMyCommandsAsync(commands, cancellationToken: cancellationToken);
+		}
 
 	}
 }

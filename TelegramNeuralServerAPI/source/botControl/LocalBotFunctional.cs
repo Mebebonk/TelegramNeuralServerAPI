@@ -25,7 +25,6 @@ namespace TelegramNeuralServerAPI
 					new() { Command = "help", Description = "Get bot help" }
 				];
 
-
 			await botClient.SetMyCommandsAsync(commands, cancellationToken: cancellationToken);
 		}
 

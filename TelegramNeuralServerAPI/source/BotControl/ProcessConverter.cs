@@ -19,8 +19,7 @@ namespace TelegramNeuralServerAPI
 				"MASK_ESTIMATOR",
 				"EYE_OPENNESS_ESTIMATOR",
 				"LIVENESS_ESTIMATOR",
-				"GLASSES_ESTIMATOR",
-				"CHERTOCHKA"
+				"GLASSES_ESTIMATOR"				
 			];
 
 		public static short ConvertPollToBytes(int[] answers)
@@ -36,7 +35,7 @@ namespace TelegramNeuralServerAPI
 
 		public static string[] ConvertBytesToStrings(short binary)
 		{
-			List<String> strings = [];
+			List<string> strings = [];
 			short bytes = binary;
 
 			for (short i = 0; i < simplePollAnswers.Length; i++)

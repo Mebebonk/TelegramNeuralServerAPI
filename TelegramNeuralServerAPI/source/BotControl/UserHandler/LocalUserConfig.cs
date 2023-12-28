@@ -9,7 +9,7 @@ namespace TelegramNeuralServerAPI
 	internal class LocalUserConfig(long userId)
 	{
 		public long UserId { get; set; } = userId;
-		public LocalImage[]? images;
+		public List<string> images = [];
 		public short simpleProcessess = 0b_0000_0000_0000_0001;
 		public byte specificProcessess = 0b_0000_0001;
 	}

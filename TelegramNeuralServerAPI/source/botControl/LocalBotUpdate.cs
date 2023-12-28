@@ -21,13 +21,11 @@ namespace TelegramNeuralServerAPI
 
 				if (message.Text?.First() == '/') { await RealiseCommand(); return; }
 
-				//TODO: edgecase: photo comentary '/'!!!
+				PhotoSize? photo = message.Photo?.Last();
 
-				var photos = message.Photo;
-				if (photos == null) { return; }
-
-				var photo = photos.Last();
 				if (photo == null) { return; }
+
+				await RealisePhoto();
 
 				return;
 			}
@@ -37,14 +35,24 @@ namespace TelegramNeuralServerAPI
 		public async Task RealiseVote()
 		{
 			try
-			{				
+			{
 				LocalUserConfig user = await userCfg;
 
 				user.simpleProcessess = ProcessConverter.ConvertPollToBytes(update.PollAnswer!.OptionIds);
 			}
 			catch (NullReferenceException ex) { Console.WriteLine(ex.ToString()); return; }
 		}
+		private async Task RealisePhoto()
+		{
+			try
+			{
+				string fileId = update.Message!.Photo!.Last().FileId;
 
+				var user = await userCfg;
+				user.images.Add(fileId);
+			}
+			catch (NullReferenceException ex) { Console.WriteLine(ex.ToString()); return; }
+		}
 		private async Task RealiseCommand()
 		{
 			string newCommand = update.Message!.Text!.Replace("/", "");
@@ -52,24 +60,32 @@ namespace TelegramNeuralServerAPI
 			switch (newCommand)
 			{
 				case "launch":
-					FileStream fs = new("ng.jpg", FileMode.Open);
-					MemoryStream stream = new();
-					fs.CopyTo(stream);
 
+					LocalUserConfig user = await userCfg;
+					List<LocalImage> localImages = [];
 
-					Mat mat = new();
-					CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
+					foreach (var image in user.images)
+					{
+						using MemoryStream stream = new();
+						await botClient.DownloadFileAsync(image, stream);
 
-					var img = mat.ToImage<Rgb, byte>();
+						using Mat mat = new();
+						CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
+						
+						using Image<Rgb, byte> img = mat.ToImage<Rgb, byte>();						
+						localImages.Add(new((ushort)img.Width, (ushort)img.Height, (byte)img.NumberOfChannels, Convert.ToBase64String(img.Bytes)));
+						
+					}
 
-					LocalUserConfig config = await userCfg;
-					string a = await requestHandler.LaunchProcess(new([new LocalImage((ushort)img.Width, (ushort)img.Height, (byte)img.NumberOfChannels, Convert.ToBase64String(img.Bytes))], ["AGE_ESTIMATOR"]));
+					string a = await requestHandler.LaunchProcess(new([.. localImages], ProcessConverter.ConvertBytesToStrings(user.simpleProcessess)));
+
 					await botClient.SendTextMessageAsync(update.Message.From!.Id, a, cancellationToken: cancellationToken);
-					fs.Dispose();
+
+					user.images.Clear();
 					return;
 
 				case "settings":
-					var message = await botClient.SendPollAsync(update.Message.From!.Id, "Choose processess:", ProcessConverter.simplePollAnswers, allowsMultipleAnswers: true, isAnonymous: false, cancellationToken: cancellationToken);
+					await botClient.SendPollAsync(update.Message.From!.Id, "Choose processess:", ProcessConverter.simplePollAnswers, allowsMultipleAnswers: true, isAnonymous: false, cancellationToken: cancellationToken);
 
 					return;
 

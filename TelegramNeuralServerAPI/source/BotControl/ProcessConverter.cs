@@ -11,15 +11,16 @@ namespace TelegramNeuralServerAPI
 
 		public static readonly string[] simplePollAnswers =
 			[
-			"FACE_DETECTOR",
-			"FITTER",
-			"AGE_ESTIMATOR",
-			"GENDER_ESTIMATOR",
-			"EMOTION_ESTIMATOR",
-			"MASK_ESTIMATOR",
-			"EYE_OPENNESS_ESTIMATOR",
-			"LIVENESS_ESTIMATOR",
-			"GLASSES_ESTIMATOR"
+				"FACE_DETECTOR",
+				"FITTER",
+				"AGE_ESTIMATOR",
+				"GENDER_ESTIMATOR",
+				"EMOTION_ESTIMATOR",
+				"MASK_ESTIMATOR",
+				"EYE_OPENNESS_ESTIMATOR",
+				"LIVENESS_ESTIMATOR",
+				"GLASSES_ESTIMATOR",
+				"CHERTOCHKA"
 			];
 
 		public static short ConvertPollToBytes(int[] answers)

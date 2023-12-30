@@ -66,15 +66,16 @@ namespace TelegramNeuralServerAPI
 
 					foreach (var image in user.images)
 					{
+						Telegram.Bot.Types.File file = await botClient.GetFileAsync(image, cancellationToken);
+						
 						using MemoryStream stream = new();
-						await botClient.DownloadFileAsync(image, stream);
+						await botClient.DownloadFileAsync(file.FilePath!, stream);
 
 						using Mat mat = new();
-						CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
-						
-						using Image<Rgb, byte> img = mat.ToImage<Rgb, byte>();						
+						CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat); ;
+
+						using Image<Rgb, byte> img = mat.ToImage<Rgb, byte>();
 						localImages.Add(new((ushort)img.Width, (ushort)img.Height, (byte)img.NumberOfChannels, Convert.ToBase64String(img.Bytes)));
-						
 					}
 
 					string a = await requestHandler.LaunchProcess(new([.. localImages], ProcessConverter.ConvertBytesToStrings(user.simpleProcessess)));

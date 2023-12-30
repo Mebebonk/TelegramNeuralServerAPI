@@ -24,7 +24,12 @@ namespace TelegramNeuralServerAPI
 		public async Task<string> LaunchProcess(LocalRequest localRequest)
 		{
 			using HttpRequestMessage request = new(HttpMethod.Post, _url + "/infer");
-			string parsedImageList = JsonSerializer.Serialize(localRequest);
+
+			JsonSerializerOptions options = new()
+			{
+				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+			};
+			string parsedImageList = JsonSerializer.Serialize(localRequest, options);		
 
 			request.Content = new StringContent(parsedImageList, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"));
 

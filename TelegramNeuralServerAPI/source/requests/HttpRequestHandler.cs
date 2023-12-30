@@ -13,6 +13,7 @@ namespace TelegramNeuralServerAPI
 	internal class HttpRequestHandler
 	{
 		static readonly HttpClient client = new();
+		static readonly JsonSerializerOptions options = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 		[SaveLoad]
 		private readonly string _url = "";
 		public HttpRequestHandler(IAPIHelper? helper = null)
@@ -25,11 +26,8 @@ namespace TelegramNeuralServerAPI
 		{
 			using HttpRequestMessage request = new(HttpMethod.Post, _url + "/infer");
 
-			JsonSerializerOptions options = new()
-			{
-				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-			};
-			string parsedImageList = JsonSerializer.Serialize(localRequest, options);		
+
+			string parsedImageList = JsonSerializer.Serialize(localRequest, options);
 
 			request.Content = new StringContent(parsedImageList, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"));
 

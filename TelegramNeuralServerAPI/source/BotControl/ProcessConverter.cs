@@ -24,7 +24,7 @@ namespace TelegramNeuralServerAPI
 
 		public static short ConvertPollToBytes(int[] answers)
 		{
-			short tmp = 0b_0000_0000_0000_0000;
+			short tmp = 0b_0000_0000_0000_0011;
 			foreach (int answer in answers)
 			{
 				tmp |= (short)(1 << answer);

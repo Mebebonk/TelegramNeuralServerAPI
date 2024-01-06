@@ -34,7 +34,7 @@ namespace TelegramNeuralServerAPI
 			HttpResponseMessage response = await client.SendAsync(request);
 			string? returnString = await response.Content.ReadAsStringAsync();
 
-			return returnString == null ? "response fail" : returnString!;
+			return returnString == null ? throw new("response fail!") : returnString!;
 		}
 	}
 }

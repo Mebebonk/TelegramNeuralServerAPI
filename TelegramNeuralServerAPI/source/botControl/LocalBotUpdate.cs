@@ -73,7 +73,7 @@ namespace TelegramNeuralServerAPI
 
 				Image<Rgb, byte> img = mat.ToImage<Rgb, byte>();
 
-				images.Add(new(file.FilePath!.Split("/").Last(), img));
+				images.Add(file.FilePath!.Split("/").Last(), img);				
 			}
 
 		}
@@ -106,11 +106,11 @@ namespace TelegramNeuralServerAPI
 						var parsedArray = data.Deserialize<Dictionary<string, object>[]>()!;
 					}
 
-					//{
-					//	using FileStream file = new("response.txt", FileMode.Create);
-					//	using StreamWriter writer = new(file);
-					//	writer.Write(response);
-					//}
+					{
+						using FileStream file = new("response.txt", FileMode.Create);
+						using StreamWriter writer = new(file);
+						writer.Write(response);
+					}
 
 					foreach (var img in images)
 					{

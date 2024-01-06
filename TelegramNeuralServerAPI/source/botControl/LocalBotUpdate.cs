@@ -89,15 +89,13 @@ namespace TelegramNeuralServerAPI
 						}
 
 						response = await requestHandler.LaunchProcess(new([.. images.Select((a) => new LocalImage(a.Value))], ProcessConverter.ConvertBytesToStrings(user.simpleProcessess)));
+					}					
+					
+					foreach (var element in JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray())
+					{
+						var data = element.GetProperty("data");
+						var parsedArray = data.Deserialize<Dictionary<string, object>[]>()!;
 					}
-					JsonDocument json = JsonDocument.Parse(response);
-
-					var jsonRoot = json.RootElement;
-					var result = jsonRoot.GetProperty("result");
-					var array = result.EnumerateArray().Last();
-					var data = array.GetProperty("data");
-
-					var parsedArray = data.Deserialize<Dictionary<string, object>[]>()!;
 
 					//{
 					//	using FileStream file = new("response.txt", FileMode.Create);

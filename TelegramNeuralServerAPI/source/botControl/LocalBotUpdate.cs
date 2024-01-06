@@ -11,6 +11,7 @@ using Emgu.CV.Dai;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Emgu.CV.Features2D;
 
 namespace TelegramNeuralServerAPI
 {
@@ -57,6 +58,25 @@ namespace TelegramNeuralServerAPI
 			}
 			catch (NullReferenceException ex) { Console.WriteLine(ex.ToString()); return; }
 		}
+
+		private async Task BuildImages(LocalUserConfig user, Dictionary<string, Image<Rgb, byte>> images)
+		{
+			foreach (var image in user.images)
+			{
+				Telegram.Bot.Types.File file = await botClient.GetFileAsync(image, cancellationToken);
+
+				using MemoryStream stream = new();
+				await botClient.DownloadFileAsync(file.FilePath!, stream);
+
+				using Mat mat = new();
+				CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
+
+				Image<Rgb, byte> img = mat.ToImage<Rgb, byte>();
+
+				images.Add(new(file.FilePath!.Split("/").Last(), img));
+			}
+
+		}
 		private async Task RealiseCommand()
 		{
 			string newCommand = update.Message!.Text!.Replace("/", "");
@@ -70,30 +90,19 @@ namespace TelegramNeuralServerAPI
 					if (user.images.Count == 0) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "No images found!", cancellationToken: cancellationToken); return; }
 
 					string response = "";
-					List<KeyValuePair<string, Image<Rgb, byte>>> images = [];
+					Dictionary<string, Image<Rgb, byte>> images = [];
 
-					{
-						foreach (var image in user.images)
-						{
-							Telegram.Bot.Types.File file = await botClient.GetFileAsync(image, cancellationToken);
-
-							using MemoryStream stream = new();
-							await botClient.DownloadFileAsync(file.FilePath!, stream);
-
-							using Mat mat = new();
-							CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
-
-							Image<Rgb, byte> img = mat.ToImage<Rgb, byte>();
-
-							images.Add(new(file.FilePath!.Split("/").Last(), img));
-						}
-
-						response = await requestHandler.LaunchProcess(new([.. images.Select((a) => new LocalImage(a.Value))], ProcessConverter.ConvertBytesToStrings(user.simpleProcessess)));
-					}					
+					await BuildImages(user, images);
+					response = await requestHandler.LaunchProcess(new([.. images.Select((a) => new LocalImage(a.Value))], ProcessConverter.ConvertBytesToStrings(user.simpleProcessess)));
 					
-					foreach (var element in JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray())
+
+					JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
+
+					if (array.Count() != images.Count) { throw new("count missmatch"); }
+
+					foreach (JsonElement imageData in array)
 					{
-						var data = element.GetProperty("data");
+						JsonElement data = imageData.GetProperty("data");
 						var parsedArray = data.Deserialize<Dictionary<string, object>[]>()!;
 					}
 

@@ -59,24 +59,6 @@ namespace TelegramNeuralServerAPI
 			catch (NullReferenceException ex) { Console.WriteLine(ex.ToString()); return; }
 		}
 
-		private async Task BuildImages(LocalUserConfig user, Dictionary<string, Image<Rgb, byte>> images)
-		{
-			foreach (var image in user.images)
-			{
-				Telegram.Bot.Types.File file = await botClient.GetFileAsync(image, cancellationToken);
-
-				using MemoryStream stream = new();
-				await botClient.DownloadFileAsync(file.FilePath!, stream);
-
-				using Mat mat = new();
-				CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
-
-				Image<Rgb, byte> img = mat.ToImage<Rgb, byte>();
-
-				images.Add(file.FilePath!.Split("/").Last(), img);				
-			}
-
-		}
 		private async Task RealiseCommand()
 		{
 			string newCommand = update.Message!.Text!.Replace("/", "");
@@ -92,49 +74,41 @@ namespace TelegramNeuralServerAPI
 					string response = "";
 					Dictionary<string, Image<Rgb, byte>> images = [];
 
-					await BuildImages(user, images);
+					await PrepareImages(user, images);
 					response = await requestHandler.LaunchProcess(new([.. images.Select((a) => new LocalImage(a.Value))], ProcessConverter.ConvertBytesToStrings(user.simpleProcessess)));
-					
 
 					JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
-
 					if (array.Count() != images.Count) { throw new("count missmatch"); }
 
+					int i = 0;
 					foreach (JsonElement imageData in array)
 					{
 						JsonElement data = imageData.GetProperty("data");
-						var parsedArray = data.Deserialize<Dictionary<string, object>[]>()!;
-					}
+						var peopleData = data.EnumerateArray();
+						if (!peopleData.Any()) { throw new("no data found!"); }
 
-					{
-						using FileStream file = new("response.txt", FileMode.Create);
-						using StreamWriter writer = new(file);
-						writer.Write(response);
-					}
-
-					foreach (var img in images)
-					{
-						MemoryStream imgMs;
-
-						try
+						foreach (JsonElement personData in peopleData)
 						{
-							imgMs = new(CvInvoke.Imencode("." + img.Key.Split(".").Last(), img.Value));
-						}
-						catch (Emgu.CV.Util.CvException)
-						{
-							imgMs = new(CvInvoke.Imencode(".png", img.Value));
-						}
-						await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), caption: "caption", cancellationToken: cancellationToken);
+							Person person = personData.Deserialize<Person>() ?? throw new("how?..");
 
-						img.Value.Dispose();
-						imgMs.Dispose();
+						}
+
+						i++;
 					}
+
+					//{
+					//	using FileStream file = new("log.txt", FileMode.Create);
+					//	using StreamWriter writer = new(file);
+					//	writer.Write(response);
+					//}
+
+					await ThrowImages(user, images);
 
 					user.images.Clear();
 					return;
 
 				case "settings":
-					await botClient.SendPollAsync(update.Message.From!.Id, "Choose processess:", ProcessConverter.simplePollAnswersHR, allowsMultipleAnswers: true, isAnonymous: false, cancellationToken: cancellationToken);
+					_ = botClient.SendPollAsync(update.Message.From!.Id, "Choose processess:", ProcessConverter.simplePollAnswersHR, allowsMultipleAnswers: true, isAnonymous: false, cancellationToken: cancellationToken);
 
 					return;
 
@@ -144,6 +118,44 @@ namespace TelegramNeuralServerAPI
 
 			}
 
+		}
+		private async Task PrepareImages(LocalUserConfig user, Dictionary<string, Image<Rgb, byte>> images)
+		{
+			foreach (var image in user.images)
+			{
+				Telegram.Bot.Types.File file = await botClient.GetFileAsync(image, cancellationToken);
+
+				using MemoryStream stream = new();
+				await botClient.DownloadFileAsync(file.FilePath!, stream);
+
+				using Mat mat = new();
+				CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
+
+				Image<Rgb, byte> img = mat.ToImage<Rgb, byte>();
+
+				images.Add(file.FilePath!.Split("/").Last(), img);
+			}
+
+		}
+		private async Task ThrowImages(LocalUserConfig user, Dictionary<string, Image<Rgb, byte>> images)
+		{
+			foreach (var img in images)
+			{
+				MemoryStream imgMs;
+
+				try
+				{
+					imgMs = new(CvInvoke.Imencode("." + img.Key.Split(".").Last(), img.Value));
+				}
+				catch (Emgu.CV.Util.CvException)
+				{
+					imgMs = new(CvInvoke.Imencode(".png", img.Value));
+				}
+				await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), caption: "caption", cancellationToken: cancellationToken);
+
+				img.Value.Dispose();
+				imgMs.Dispose();
+			}
 		}
 
 	}

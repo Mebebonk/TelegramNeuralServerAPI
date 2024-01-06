@@ -7,6 +7,10 @@ using Telegram.Bot.Types;
 using Telegram.Bot;
 using Emgu.CV;
 using Emgu.CV.Structure;
+using Emgu.CV.Dai;
+using System.Text.Json.Serialization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace TelegramNeuralServerAPI
 {
@@ -63,33 +67,58 @@ namespace TelegramNeuralServerAPI
 
 					LocalUserConfig user = await userCfg;
 					if (user.images.Count == 0) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "No images found!", cancellationToken: cancellationToken); return; }
-					List<LocalImage> localImages = [];
+					string response = "";
 
-					foreach (var image in user.images)
 					{
-						Telegram.Bot.Types.File file = await botClient.GetFileAsync(image, cancellationToken);
+						List<LocalImage> localImages = [];
+						List<KeyValuePair<string, Image<Rgb, byte>>> images = [];
 
-						using MemoryStream stream = new();
-						await botClient.DownloadFileAsync(file.FilePath!, stream);
+						foreach (var image in user.images)
+						{
+							Telegram.Bot.Types.File file = await botClient.GetFileAsync(image, cancellationToken);
 
-						using Mat mat = new();
-						CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat); ;
+							using MemoryStream stream = new();
+							await botClient.DownloadFileAsync(file.FilePath!, stream);
 
-						using Image<Rgb, byte> img = mat.ToImage<Rgb, byte>();
-						localImages.Add(new((ushort)img.Width, (ushort)img.Height, (byte)img.NumberOfChannels, Convert.ToBase64String(img.Bytes)));
+							using Mat mat = new();
+							CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
+
+							Image<Rgb, byte> img = mat.ToImage<Rgb, byte>();						
+
+							//TODO: ext
+							//string ext = file.FilePath!.Split(".").Last();
+							//MemoryStream ms = new(CvInvoke.Imencode(ext, img));							
+
+							localImages.Add(new((ushort)img.Width, (ushort)img.Height, (byte)img.NumberOfChannels, Convert.ToBase64String(img.Bytes)));
+							images.Add(new(file.FilePath!.Split("/").Last(), img));
+						}
+
+						//response = await requestHandler.LaunchProcess(new([.. localImages], ProcessConverter.ConvertBytesToStrings(user.simpleProcessess)));
+						response = await requestHandler.LaunchProcess(new([.. images.Select((a)=> LocalImage.LocalFromImage(a.Value))], ProcessConverter.ConvertBytesToStrings(user.simpleProcessess)));
+					}
+					JsonDocument json = JsonDocument.Parse(response);
+
+					var jsonRoot = json.RootElement;
+					var result = jsonRoot.GetProperty("result");
+					var array = result.EnumerateArray().Last();
+					var data = array.GetProperty("data");
+					
+					var parsedArray = data.Deserialize<Dictionary<string, object>[]>()!;
+
+					{
+						using FileStream file = new("response.txt", FileMode.Create);
+						using StreamWriter writer = new(file);
+						writer.Write(response);
 					}
 
-					string a = await requestHandler.LaunchProcess(new([.. localImages], ProcessConverter.ConvertBytesToStrings(user.simpleProcessess)));
-
-					await botClient.SendTextMessageAsync(update.Message.From!.Id, a, cancellationToken: cancellationToken);
-
+					//TODO: botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(), caption: , cancellationToken: cancellationToken);
 					user.images.Clear();
 					return;
 
 				case "settings":
-					await botClient.SendPollAsync(update.Message.From!.Id, "Choose processess:", ProcessConverter.simplePollAnswers, allowsMultipleAnswers: true, isAnonymous: false, cancellationToken: cancellationToken);
+					await botClient.SendPollAsync(update.Message.From!.Id, "Choose processess:", ProcessConverter.simplePollAnswersHR, allowsMultipleAnswers: true, isAnonymous: false, cancellationToken: cancellationToken);
 
-					return;
+					return; 
 
 				case "help":
 					//TODO: SUDU

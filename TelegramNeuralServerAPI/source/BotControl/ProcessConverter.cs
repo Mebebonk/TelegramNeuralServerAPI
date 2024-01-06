@@ -21,10 +21,22 @@ namespace TelegramNeuralServerAPI
 				"LIVENESS_ESTIMATOR",
 				"GLASSES_ESTIMATOR"				
 			];
+		public static readonly string[] simplePollAnswersHR =
+			[
+				"Face detector",
+				"Fitter",
+				"Age",
+				"Gender",
+				"Emotion",
+				"Mask",
+				"Eye openness",
+				"Liveness",
+				"Glasses"
+			];
 
 		public static short ConvertPollToBytes(int[] answers)
 		{
-			short tmp = 0b_0000_0000_0000_0011;
+			short tmp = 0b_0000_0000_0000_0001;
 			foreach (int answer in answers)
 			{
 				tmp |= (short)(1 << answer);

@@ -22,9 +22,9 @@ namespace TelegramNeuralServerAPI
 		[JsonInclude]
 		public string depthType = "uint8_t";
 
-		static public LocalImage LocalFromImage(Image<Rgb, byte> img)
+		public LocalImage(Image<Rgb, byte> img) : this((ushort)img.Width, (ushort)img.Height, (byte)img.NumberOfChannels, Convert.ToBase64String(img.Bytes))
 		{
-			return new((ushort)img.Width, (ushort)img.Height, (byte)img.NumberOfChannels, Convert.ToBase64String(img.Bytes));
-		}
+
+		}	
 	}
 }

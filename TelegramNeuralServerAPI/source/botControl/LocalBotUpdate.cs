@@ -66,13 +66,13 @@ namespace TelegramNeuralServerAPI
 				case "launch":
 
 					LocalUserConfig user = await userCfg;
+
 					if (user.images.Count == 0) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "No images found!", cancellationToken: cancellationToken); return; }
+
 					string response = "";
 					List<KeyValuePair<string, Image<Rgb, byte>>> images = [];
 
 					{
-						List<LocalImage> localImages = [];
-
 						foreach (var image in user.images)
 						{
 							Telegram.Bot.Types.File file = await botClient.GetFileAsync(image, cancellationToken);

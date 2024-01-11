@@ -9,10 +9,10 @@ namespace TelegramNeuralServerAPI
 	internal static class BotGlobals
 	{
 		public const string launchCommandName = "launch_face_process";
+		public const string faceProcessSettingsCommandName = "face_process_settings";
+
 		public const string launchReIdCommandName = "launch_re_id";
 		public const string launchRecognizeCommandName = "launch_recognize";
-
-		public const string faceProcessSettingsCommandName = "settings";
 
 		public const string flushCommandName = "flush";
 

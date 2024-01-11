@@ -98,9 +98,9 @@ namespace TelegramNeuralServerAPI
 			BotCommand[] commands =
 				[
 					new() { Command = BotGlobals.launchCommandName,	 Description = "Launch process(ess)" },
+					new() { Command = BotGlobals.faceProcessSettingsCommandName, Description = "Change face processess" },
 					new() { Command = BotGlobals.launchRecognizeCommandName, Description = "Launch face recognize" },
 					new() { Command = BotGlobals.launchReIdCommandName, Description = "Launch body reidentify" },
-					new() { Command = BotGlobals.faceProcessSettingsCommandName, Description = "Change processess" },
 					new() { Command = BotGlobals.flushCommandName, Description = "Flush images" },
 					new() { Command = BotGlobals.helpCommandName, Description = "Get bot help" }
 				];

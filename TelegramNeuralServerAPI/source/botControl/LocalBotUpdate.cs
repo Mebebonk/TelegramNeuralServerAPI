@@ -19,7 +19,6 @@ namespace TelegramNeuralServerAPI
 {
 	internal class LocalBotUpdate(ITelegramBotClient botClient, Update update, Task<LocalUserConfig> userCfg, HttpRequestHandler requestHandler, CancellationToken cancellationToken)
 	{
-		static readonly JsonSerializerOptions personOptions = new() { IncludeFields = true };
 		public async Task RealiseMessage()
 		{
 			try
@@ -94,8 +93,18 @@ namespace TelegramNeuralServerAPI
 						if (user.images.Count < 2) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "Not enough images! Min: 2", cancellationToken: cancellationToken); return; }
 
 						Dictionary<ImageInfo, Image<Rgb, byte>> images = [];
-						await PrepareImages(user, images);
-						string response = await requestHandler.LaunchProcess(new ReIdRequest([.. images.Select((a) => new LocalImage(a.Value))], new(images.First().Value)));
+						await PrepareImages(user, images);											
+						string responseBodyDetector = await requestHandler.LaunchProcess(new InferRequest([.. images.Select((a) => new LocalImage(a.Value))], ["HUMAN_BODY_DETECTOR"]));
+						
+						JsonElement.ArrayEnumerator array = JsonDocument.Parse(responseBodyDetector).RootElement.GetProperty("result").EnumerateArray();
+						BuildFaceProcessInfo(user, images, array);
+
+						string response = await requestHandler.LaunchProcess(new ReIdRequest([.. images.TakeLast(images.Count - 1).Select((a) => new LocalImage(a.Value))], new(images.First().Value)));
+
+					}
+					return;
+				case BotGlobals.launchRecognizeCommandName:
+					{
 
 					}
 					return;
@@ -190,7 +199,7 @@ namespace TelegramNeuralServerAPI
 
 				foreach (JsonElement personData in peopleData)
 				{
-					Person person = personData.Deserialize<Person>(personOptions) ?? throw new("how?..");
+					PersonProcess person = personData.Deserialize<PersonProcess>() ?? throw new("how?..");
 
 					Image<Rgb, byte> currentImage = images.Values.ToArray()[imageNumber];
 					ImageInfo currentInfo = images.Keys.ToArray()[imageNumber];
@@ -209,7 +218,7 @@ namespace TelegramNeuralServerAPI
 
 					Rgb personColor = new(System.Drawing.Color.Yellow);
 					Rgb borderColor = new(System.Drawing.Color.Black);
-					if ((user.faceProcessess & 1) == 1) { DrawBox(person, currentImage, width, height, thickness, borderThickness, personColor, borderColor); }
+					if ((user.faceProcessess & 1) == 1) { DrawBox(person.faceDetector.topLeft, currentImage, width, height, thickness, borderThickness, personColor, borderColor); }
 
 					if (person.fitter is not null && (user.faceProcessess & 2) == 2)
 					{
@@ -235,10 +244,10 @@ namespace TelegramNeuralServerAPI
 			}
 		}
 
-		private static void DrawBox(Person person, Image<Rgb, byte> currentImage, int width, int height, int thickness, int borderThickness, Rgb personColor, Rgb borderColor)
+		private static void DrawBox(Coordinate coord, Image<Rgb, byte> currentImage, int width, int height, int thickness, int borderThickness, Rgb personColor, Rgb borderColor)
 		{
-			currentImage.Draw(rect: new(person.faceDetector.topLeft.x, person.faceDetector.topLeft.y, width, height), borderColor, borderThickness);
-			currentImage.Draw(rect: new(person.faceDetector.topLeft.x, person.faceDetector.topLeft.y, width, height), personColor, thickness);
+			currentImage.Draw(rect: new(coord.x, coord.y, width, height), borderColor, borderThickness);
+			currentImage.Draw(rect: new(coord.x, coord.y, width, height), personColor, thickness);
 		}
 	}
 }

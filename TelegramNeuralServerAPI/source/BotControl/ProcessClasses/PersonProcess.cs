@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 
 namespace TelegramNeuralServerAPI
 {
-	internal class Person(FaceDetector faceDetector, Fitter? fitter, AgeEstimator? ageEstimator, LivenessEstimator? livenessEstimator, GenderEstimator? genderEstimator, EmotionEstimator? emotionEstimator, MaskEstimator? maskEstimator, GlassesEstimator? glassesEstimator)
+	internal class PersonProcess(BoundingBox faceDetector, Fitter? fitter, AgeEstimator? ageEstimator, LivenessEstimator? livenessEstimator, GenderEstimator? genderEstimator, EmotionEstimator? emotionEstimator, MaskEstimator? maskEstimator, GlassesEstimator? glassesEstimator)
 	{
 
 		[JsonInclude]
 		[JsonPropertyName("boundingBox")]
-		public FaceDetector faceDetector = faceDetector;
+		public BoundingBox faceDetector = faceDetector;
 
 		[JsonInclude]
 		[JsonPropertyName("FITTER")]
@@ -75,7 +75,7 @@ namespace TelegramNeuralServerAPI
 	}
 
 	[method: JsonConstructor]
-	internal readonly struct FaceDetector(Coordinate topLeft, Coordinate bottomRight)
+	internal readonly struct BoundingBox(Coordinate topLeft, Coordinate bottomRight)
 	{
 		[JsonInclude]
 		[JsonPropertyName("topLeft")]

@@ -9,7 +9,7 @@ namespace TelegramNeuralServerAPI
 	internal static class ProcessConverter
 	{
 
-		public static readonly string[] simplePollAnswers =
+		public static readonly string[] facePollAnswers =
 			[
 				"FACE_DETECTOR",
 				"FITTER",
@@ -19,24 +19,26 @@ namespace TelegramNeuralServerAPI
 				"MASK_ESTIMATOR",
 				"EYE_OPENNESS_ESTIMATOR",
 				"LIVENESS_ESTIMATOR",
-				"GLASSES_ESTIMATOR"				
+				"GLASSES_ESTIMATOR"	,
+				"HUMAN_BODY_DETECTOR"
 			];
-		public static readonly string[] simplePollAnswersHR =
+		public static readonly string[] facePollAnswersHR =
 			[
 				"Face detector",
-				"Fitter",
+				"Fitter (face mesh)",
 				"Age",
 				"Gender",
 				"Emotion",
 				"Mask",
 				"Eye openness",
-				"Liveness",
-				"Glasses"
-			];
+				"Liveness (real human or not)",
+				"Glasses",
+				"Human body detector"
+			]; 
 
-		public static short ConvertPollToBytes(int[] answers)
+		public static short ConvertPollToFace(int[] answers)
 		{
-			short tmp = 0b_0000_0000_0000_0001;
+			short tmp = 0b0000_0000_0000_0000;
 			foreach (int answer in answers)
 			{
 				tmp |= (short)(1 << answer);
@@ -45,19 +47,21 @@ namespace TelegramNeuralServerAPI
 			return tmp;
 		}
 
-		public static string[] ConvertBytesToStrings(short binary)
+		public static string[] ConvertFaceToStrings(short binary)
 		{
 			List<string> strings = [];
 			short bytes = binary;
 
-			for (short i = 0; i < simplePollAnswers.Length; i++)
+			for (short i = 0; i < facePollAnswers.Length; i++)
 			{
 				if ((bytes & 1) == 1)
 				{
-					strings.Add(simplePollAnswers[i]);
+					strings.Add(facePollAnswers[i]);
 				}
 				bytes >>= 1;
 			}
+			if (strings.Contains(facePollAnswers[6]) && !strings.Contains(facePollAnswers[1])) { strings.Add(facePollAnswers[1]); }
+			if (!strings.Contains(facePollAnswers[0])) { strings.Add(facePollAnswers[0]); }
 
 			return [.. strings];
 		}

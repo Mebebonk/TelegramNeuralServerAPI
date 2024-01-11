@@ -10,7 +10,8 @@ namespace TelegramNeuralServerAPI
 	{
 		public long UserId { get; set; } = userId;
 		public List<string> images = [];
-		public short simpleProcessess = 0b_0000_0000_0000_0001;
-		public byte specificProcessess = 0b_0000_0001;
+		public short faceProcessess = 0b_0000_0000_0000_0000;
+		public byte bodyProcessess = 0b_0000_0000;		
+		public int? lastPollMessageId = null;
 	}
 }

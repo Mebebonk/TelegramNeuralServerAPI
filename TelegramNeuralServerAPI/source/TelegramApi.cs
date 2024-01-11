@@ -9,6 +9,8 @@ using TelegramNeuralServerAPI;
 using System.Drawing;
 using Emgu.CV;
 using Emgu.CV.Structure;
+using Microsoft.VisualBasic;
+
 
 
 namespace TelegramNeuralServerAPI
@@ -95,9 +97,12 @@ namespace TelegramNeuralServerAPI
 		{
 			BotCommand[] commands =
 				[
-					new() { Command = "settings", Description = "View list of availiable processess" },
-					new() { Command = "launch", Description = "Launch process(ess)" },
-					new() { Command = "help", Description = "Get bot help" }
+					new() { Command = BotGlobals.launchCommandName,	 Description = "Launch process(ess)" },
+					new() { Command = BotGlobals.launchRecognizeCommandName, Description = "Launch face recognize" },
+					new() { Command = BotGlobals.launchReIdCommandName, Description = "Launch body reidentify" },
+					new() { Command = BotGlobals.faceProcessSettingsCommandName, Description = "Change processess" },
+					new() { Command = BotGlobals.flushCommandName, Description = "Flush images" },
+					new() { Command = BotGlobals.helpCommandName, Description = "Get bot help" }
 				];
 
 			await botClient.SetMyCommandsAsync(commands, cancellationToken: cancellationToken);

@@ -7,12 +7,10 @@ using System.Threading.Tasks;
 
 namespace TelegramNeuralServerAPI
 {
-	internal class LocalRequest(LocalImage[] images, string[] unitTypes)
+	[method: JsonConstructor]
+	internal class InferRequest(LocalImage[] images, string[] unitTypes) : BaseRequest(images, "/infer")
 	{
-		[JsonInclude]
-		public LocalImage[] images = images;
-
-		[JsonInclude]
+		[JsonInclude]		
 		public string[] unitTypes = unitTypes;
 	}
 }

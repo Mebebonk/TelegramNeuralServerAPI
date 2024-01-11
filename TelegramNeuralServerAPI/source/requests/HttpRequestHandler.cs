@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Telegram.Bot.Requests.Abstractions;
 
 namespace TelegramNeuralServerAPI
 {
@@ -22,10 +23,9 @@ namespace TelegramNeuralServerAPI
 			if (String.IsNullOrEmpty(_url)) { helper?.InformNoUrl(); Environment.Exit(0); }
 		}
 
-		public async Task<string> LaunchProcess(LocalRequest localRequest)
+		public async Task<string> LaunchProcess<T>(T localRequest) where T : BaseRequest
 		{
-			using HttpRequestMessage request = new(HttpMethod.Post, _url + "/infer");
-
+			using HttpRequestMessage request = new(HttpMethod.Post, _url + localRequest.urlMod);
 
 			string parsedImageList = JsonSerializer.Serialize(localRequest, options);
 
@@ -33,6 +33,8 @@ namespace TelegramNeuralServerAPI
 
 			HttpResponseMessage response = await client.SendAsync(request);
 			string? returnString = await response.Content.ReadAsStringAsync();
+
+			if (!response.IsSuccessStatusCode) { throw new($"Response error: {returnString}"); }
 
 			return returnString == null ? throw new("response fail!") : returnString!;
 		}

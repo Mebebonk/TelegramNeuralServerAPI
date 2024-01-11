@@ -41,6 +41,26 @@ namespace TelegramNeuralServerAPI
 		[JsonInclude]
 		[JsonPropertyName("GLASSES_ESTIMATOR")]
 		public GlassesEstimator? glassesEstimator = glassesEstimator;
+
+		public void WrappDescription(ImageInfo nfo)
+		{
+			nfo.TryAdd(ageEstimator?.ToString());
+			nfo.TryAdd(livenessEstimator?.ToString());
+			nfo.TryAdd(genderEstimator?.ToString());
+			nfo.TryAdd(emotionEstimator?.ToString());
+			nfo.TryAdd(maskEstimator?.ToString());
+			nfo.TryAdd(glassesEstimator?.ToString());
+		}
+
+		public bool IsFilled()
+		{
+			return ageEstimator is not null ||
+				livenessEstimator is not null ||
+				genderEstimator is not null ||
+				emotionEstimator is not null ||
+				maskEstimator is not null ||
+				glassesEstimator is not null;
+		}
 	}
 
 	[method: JsonConstructor]
@@ -85,6 +105,11 @@ namespace TelegramNeuralServerAPI
 		[JsonInclude][JsonPropertyName("NEUTRAL")] public readonly float neutral = neutral;
 		[JsonInclude][JsonPropertyName("SAD")] public readonly float sad = sad;
 		[JsonInclude][JsonPropertyName("SURPRISED")] public readonly float surprised = surprised;
+
+		public override string ToString()
+		{
+			return $"Emotions:\n<pre>Angry: {angry}\nDisgusted: {disgusted}\nScared: {scared}\nHappy: {happy}\nNeutral: {neutral}\nSad: {sad}\nSurprised: {surprised}</pre>";
+		}
 	}
 
 	[method: JsonConstructor]
@@ -93,6 +118,11 @@ namespace TelegramNeuralServerAPI
 		[JsonInclude]
 		[JsonPropertyName("age")]
 		public readonly int age = age;
+
+		public override string ToString()
+		{
+			return $"Age: <pre>Age: {age}</pre>";
+		}
 	}
 
 	[method: JsonConstructor]
@@ -104,6 +134,10 @@ namespace TelegramNeuralServerAPI
 		[JsonInclude]
 		[JsonPropertyName("value")]
 		public readonly string value = value;
+		public override string ToString()
+		{
+			return $"Liveness:\n<pre>Value: {value}\nConfidence: {confidence}</pre>";
+		}
 	}
 
 	[method: JsonConstructor]
@@ -112,6 +146,10 @@ namespace TelegramNeuralServerAPI
 		[JsonInclude]
 		[JsonPropertyName("gender")]
 		public readonly string gender = gender;
+		public override string ToString()
+		{
+			return $"Gender:\n<pre>Gender: {gender}</pre>";
+		}
 	}
 
 	[method: JsonConstructor]
@@ -120,6 +158,10 @@ namespace TelegramNeuralServerAPI
 		[JsonInclude]
 		[JsonPropertyName("hasMask")]
 		public readonly bool hasMask = hasMask;
+		public override string ToString()
+		{
+			return $"Mask:\n<pre>Has mask: {hasMask}</>";
+		}
 	}
 
 	[method: JsonConstructor]
@@ -131,5 +173,10 @@ namespace TelegramNeuralServerAPI
 		[JsonInclude]
 		[JsonPropertyName("confidence")]
 		public readonly float confidence = confidence;
+
+		public override string ToString()
+		{
+			return $"Glasses:\n<pre>Has glasses: {hasGlasses}\nConfidence: {confidence}</pre>";
+		}
 	}
 }

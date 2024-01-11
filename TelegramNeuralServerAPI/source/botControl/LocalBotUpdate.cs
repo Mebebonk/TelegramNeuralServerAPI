@@ -14,6 +14,7 @@ using System.Text.Json.Nodes;
 using Emgu.CV.Features2D;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using TelegramNeuralServerAPI;
+using System.Drawing;
 
 namespace TelegramNeuralServerAPI
 {
@@ -93,9 +94,8 @@ namespace TelegramNeuralServerAPI
 						if (user.images.Count < 2) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "Not enough images! Min: 2", cancellationToken: cancellationToken); return; }
 
 						Dictionary<ImageInfo, Image<Rgb, byte>> images = [];
-						await PrepareImages(user, images);											
+						await PrepareImages(user, images);
 						string responseBodyDetector = await requestHandler.LaunchProcess(new InferRequest([.. images.Select((a) => new LocalImage(a.Value))], ["HUMAN_BODY_DETECTOR"]));
-						
 						JsonElement.ArrayEnumerator array = JsonDocument.Parse(responseBodyDetector).RootElement.GetProperty("result").EnumerateArray();
 						BuildFaceProcessInfo(user, images, array);
 
@@ -105,6 +105,13 @@ namespace TelegramNeuralServerAPI
 					return;
 				case BotGlobals.launchRecognizeCommandName:
 					{
+						LocalUserConfig user = await userCfg;
+
+						if (user.images.Count < 2) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "Not enough images! Min: 2", cancellationToken: cancellationToken); return; }
+						Dictionary<ImageInfo, Image<Rgb, byte>> images = [];
+						await PrepareImages(user, images);
+						string response = await requestHandler.LaunchProcess(new RecognizeRequest([.. images.TakeLast(images.Count - 1).Select((a) => new LocalImage(a.Value))], new(images.First().Value)));
+						JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
 
 					}
 					return;
@@ -203,12 +210,12 @@ namespace TelegramNeuralServerAPI
 
 					Image<Rgb, byte> currentImage = images.Values.ToArray()[imageNumber];
 					ImageInfo currentInfo = images.Keys.ToArray()[imageNumber];
-
 					if (person.IsFilled())
 					{
 						currentInfo.TryAdd($"Person id: {personNumber}");
 						person.WrappDescription(currentInfo);
 					}
+
 
 					int width = Math.Abs(person.faceDetector.topLeft.x - person.faceDetector.bottomRight.x);
 					int height = Math.Abs(person.faceDetector.topLeft.y - person.faceDetector.bottomRight.y);
@@ -218,8 +225,12 @@ namespace TelegramNeuralServerAPI
 
 					Rgb personColor = new(System.Drawing.Color.Yellow);
 					Rgb borderColor = new(System.Drawing.Color.Black);
-					if ((user.faceProcessess & 1) == 1) { DrawBox(person.faceDetector.topLeft, currentImage, width, height, thickness, borderThickness, personColor, borderColor); }
 
+					int textX = person.faceDetector.topLeft.x + thickness * 2;
+					int textY = person.faceDetector.bottomRight.y - thickness * 2;
+					Point textPoint = new(textX, textY);
+
+					if ((user.faceProcessess & 1) == 1) { DrawBox(person.faceDetector.topLeft, currentImage, width, height, thickness, borderThickness, personColor, borderColor); }
 					if (person.fitter is not null && (user.faceProcessess & 2) == 2)
 					{
 						foreach (var point in person.fitter.Value.keypoints)
@@ -231,17 +242,19 @@ namespace TelegramNeuralServerAPI
 						currentImage.Draw(new CircleF(new(person.fitter.Value.rightEye.x, person.fitter.Value.rightEye.y), thickness), personColor);
 					}
 
-					int textX = person.faceDetector.topLeft.x + thickness * 2;
-					int textY = person.faceDetector.bottomRight.y - thickness * 2;
-
-					currentImage.Draw(personNumber.ToString(), new System.Drawing.Point(textX, textY), Emgu.CV.CvEnum.FontFace.HersheySimplex, 1.0, borderColor, borderThickness);
-					currentImage.Draw(personNumber.ToString(), new System.Drawing.Point(textX, textY), Emgu.CV.CvEnum.FontFace.HersheySimplex, 1.0, personColor, thickness);
+					DrawText(personNumber.ToString(), currentImage, thickness, borderThickness, personColor, borderColor, textPoint);
 
 					personNumber++;
 				}
 
 				imageNumber++;
 			}
+		}
+
+		private static void DrawText(string text, Image<Rgb, byte> currentImage, int thickness, int borderThickness, Rgb personColor, Rgb borderColor, Point point)
+		{
+			currentImage.Draw(text, point, Emgu.CV.CvEnum.FontFace.HersheySimplex, 1.0, borderColor, borderThickness);
+			currentImage.Draw(text, point, Emgu.CV.CvEnum.FontFace.HersheySimplex, 1.0, personColor, thickness);
 		}
 
 		private static void DrawBox(Coordinate coord, Image<Rgb, byte> currentImage, int width, int height, int thickness, int borderThickness, Rgb personColor, Rgb borderColor)

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace TelegramNeuralServerAPI
 {
-	internal class RecognizeRequest(LocalImage[] images, LocalImage referenceImage, float verifyThreshold = 100.0f, string urlMod = "/recogize") : BaseRequest(images, urlMod)
+	internal class RecognizeRequest(LocalImage[] images, LocalImage referenceImage, float verifyThreshold = 100f, string urlMod = "/recogize") : BaseRequest(images, urlMod)
 	{
 		[JsonInclude]
 		public LocalImage referenceImage = referenceImage;

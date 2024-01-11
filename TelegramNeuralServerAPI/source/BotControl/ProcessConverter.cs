@@ -19,8 +19,7 @@ namespace TelegramNeuralServerAPI
 				"MASK_ESTIMATOR",
 				"EYE_OPENNESS_ESTIMATOR",
 				"LIVENESS_ESTIMATOR",
-				"GLASSES_ESTIMATOR"	,
-				"HUMAN_BODY_DETECTOR"
+				"GLASSES_ESTIMATOR"	
 			];
 		public static readonly string[] facePollAnswersHR =
 			[
@@ -32,8 +31,7 @@ namespace TelegramNeuralServerAPI
 				"Mask",
 				"Eye openness",
 				"Liveness (real human or not)",
-				"Glasses",
-				"Human body detector"
+				"Glasses"
 			]; 
 
 		public static short ConvertPollToFace(int[] answers)

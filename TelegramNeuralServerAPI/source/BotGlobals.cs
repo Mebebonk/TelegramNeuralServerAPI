@@ -15,6 +15,7 @@ namespace TelegramNeuralServerAPI
 		public const string launchRecognizeCommandName = "launch_recognize";
 
 		public const string flushCommandName = "flush";
+		public const string showQueueCommandName = "show_queue";
 
 		public const string helpCommandName = "help";
 		public const string helpText = $"1 - Send image files you want to process\n2 - Select processess \"/{faceProcessSettingsCommandName}\"\n 3 - /{launchCommandName} process and wait\nOnly selected options will show up\nSettings saved automaticaly (per bot session)";

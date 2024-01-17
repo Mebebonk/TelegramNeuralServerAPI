@@ -17,6 +17,8 @@ using TelegramNeuralServerAPI;
 using System.Drawing;
 using Emgu.CV.ImgHash;
 using static System.Net.Mime.MediaTypeNames;
+using Emgu.CV.Ocl;
+using static Emgu.CV.Dai.OpenVino;
 
 namespace TelegramNeuralServerAPI
 {
@@ -80,13 +82,14 @@ namespace TelegramNeuralServerAPI
 
 						if (user.images.Count == 0) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "No images found!", cancellationToken: cancellationToken); return; }
 
-						Dictionary<ImageInfo, Image<Rgb, byte>> images = [];
+						List<ExtendedImage> images = [];
 						await PrepareImages(user, images);
-						string response = await requestHandler.LaunchProcess(new InferRequest([.. images.Select((a) => new LocalImage(a.Value))], ProcessConverter.ConvertFaceToStrings(user.faceProcessess)));
+						string response = await requestHandler.LaunchProcess(new InferRequest([.. images.Select((a) => new LocalImage(a))], ProcessConverter.ConvertFaceToStrings(user.faceProcessess)));
 						JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
 
 						if (array.Count() != images.Count) { throw new("count missmatch"); }
-						BuildFaceProcessInfo(user, images, array);
+
+						ActOnArray<PersonProcess>(array, (process, imN, perN) => FaceProcess(process, imN, perN, user, images));
 
 						await ThrowImages(user, images);
 						user.images.Clear();
@@ -98,19 +101,21 @@ namespace TelegramNeuralServerAPI
 						LocalUserConfig user = await userCfg;
 
 						if (user.images.Count < 2) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "Not enough images! Min: 2", cancellationToken: cancellationToken); return; }
+						List<ExtendedImage> images = [];
 
-						Dictionary<ImageInfo, Image<Rgb, byte>> images = [];
 						await PrepareImages(user, images);
-						string responseBodyDetector = await requestHandler.LaunchProcess(new InferRequest([.. images.Select((a) => new LocalImage(a.Value))], ["HUMAN_BODY_DETECTOR"]));
+						string responseBodyDetector = await requestHandler.LaunchProcess(new InferRequest([.. images.Select((a) => new LocalImage(a))], ["HUMAN_BODY_DETECTOR"]));
 						JsonElement.ArrayEnumerator bodyDetectorArray = JsonDocument.Parse(responseBodyDetector).RootElement.GetProperty("result").EnumerateArray();
 						if (bodyDetectorArray.Count() != images.Count) { throw new("count missmatch"); }
 
-						List<Image<Rgb, byte>> croppedImages = CropImages(images, bodyDetectorArray);
+						List<Image<Rgb, byte>> croppedImages = [];
+						ActOnArray<RecognizeProcess>(bodyDetectorArray, (process, imageN, personN) => CropProcess(process, imageN, personN, croppedImages, images));
+
 						string response = await requestHandler.LaunchProcess(new ReIdRequest([.. croppedImages.TakeLast(images.Count - 1).Select((a) => new LocalImage(a))], new(croppedImages.First())));
 						DisposeEnumerable(croppedImages);
 						JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
 
-						BuildReIdProcessInfo(images, array);
+						ActOnArray<ReIdProcess>(array, (process, imageN)=>ReIdProcess(process, imageN, images));
 
 						await ThrowImages(user, images);
 						user.images.Clear();
@@ -122,10 +127,13 @@ namespace TelegramNeuralServerAPI
 						LocalUserConfig user = await userCfg;
 
 						if (user.images.Count < 2) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "Not enough images! Min: 2", cancellationToken: cancellationToken); return; }
-						Dictionary<ImageInfo, Image<Rgb, byte>> images = [];
+						List<ExtendedImage> images = [];
+
 						await PrepareImages(user, images);
-						string response = await requestHandler.LaunchProcess(new RecognizeRequest([.. images.TakeLast(images.Count - 1).Select((a) => new LocalImage(a.Value))], new(images.First().Value)));
+						string response = await requestHandler.LaunchProcess(new RecognizeRequest([.. images.TakeLast(images.Count - 1).Select((a) => new LocalImage(a))], new(images.First())));
 						JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
+
+						ActOnArray<RecognizeProcess>(array, (process, imN, perN) => RecognizeProcess(process, imN, perN, images));
 
 						await ThrowImages(user, images);
 						user.images.Clear();
@@ -157,7 +165,7 @@ namespace TelegramNeuralServerAPI
 
 						if (user.images.Count == 0) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "No images found!", cancellationToken: cancellationToken); return; }
 
-						Dictionary<ImageInfo, Image<Rgb, byte>> images = [];
+						List<ExtendedImage> images = [];
 						await PrepareImages(user, images);
 						if (images.Count > 1)
 						{
@@ -166,20 +174,17 @@ namespace TelegramNeuralServerAPI
 								var tmp = images.Take(new System.Range(i * 10, (i + 1) * 10));
 								if (!tmp.Any()) { return; }
 
-								await botClient.SendMediaGroupAsync(user.UserId, tmp.Select((a, it)
-									=> new InputMediaPhoto(InputFile.FromStream(
-										TryEncodeImage(new(images.Keys.ToArray()[i + it], images.Values.ToArray()[i + it])),
-										images.Keys.ToArray()[i + it].Name))));
+								await botClient.SendMediaGroupAsync(user.UserId, tmp.Select((a, it) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(images[i + it])))));
 							}
 						}
 						else
 						{
-							MemoryStream imgMs = TryEncodeImage(new(images.Keys.ToArray()[0], images.Values.ToArray()[0]));
+							MemoryStream imgMs = TryEncodeImage(images[0]);
 
 							await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), cancellationToken: cancellationToken);
 							imgMs.Dispose();
 						}
-						DisposeEnumerable(images.Select((a) => a.Value));
+						DisposeEnumerable(images);
 					}
 					return;
 				//help
@@ -194,9 +199,9 @@ namespace TelegramNeuralServerAPI
 		}
 
 
-		private async Task PrepareImages(LocalUserConfig user, Dictionary<ImageInfo, Image<Rgb, byte>> images)
+		private async Task PrepareImages(LocalUserConfig user, List<ExtendedImage> images)
 		{
-			List<Task<KeyValuePair<ImageInfo, Image<Rgb, byte>>>> tasks = [];
+			List<Task<ExtendedImage>> tasks = [];
 			foreach (var image in user.images)
 			{
 				tasks.Add(PrepareImageAsync(image));
@@ -205,10 +210,10 @@ namespace TelegramNeuralServerAPI
 
 			foreach (var task in tasks)
 			{
-				images.Add(task.Result.Key, task.Result.Value);
+				images.Add(task.Result);
 			}
 		}
-		private async Task<KeyValuePair<ImageInfo, Image<Rgb, byte>>> PrepareImageAsync(string image)
+		private async Task<ExtendedImage> PrepareImageAsync(string image)
 		{
 			Telegram.Bot.Types.File file = await botClient.GetFileAsync(image, cancellationToken);
 
@@ -219,30 +224,45 @@ namespace TelegramNeuralServerAPI
 
 			CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
 
-			return new(new(file.FilePath!.Split("/").Last()), mat.ToImage<Rgb, byte>());
+			return new(mat, new(file.FilePath!.Split("/").Last()));
 		}
-		private async Task ThrowImages(LocalUserConfig user, Dictionary<ImageInfo, Image<Rgb, byte>> images)
+		private async Task ThrowImages(LocalUserConfig user, List<ExtendedImage> images)
 		{
 			foreach (var img in images)
 			{
 				MemoryStream imgMs = TryEncodeImage(img);
 
-				if (img.Key.Description?.Length > 1023)
+				if (img.ImageInfo.Description?.Length > 1023)
 				{
 					await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), cancellationToken: cancellationToken);
-					using MemoryStream stream = new(Encoding.ASCII.GetBytes(img.Key.RawDescription!));
+					using MemoryStream stream = new(Encoding.ASCII.GetBytes(img.ImageInfo.RawDescription!));
 
 					await botClient.SendDocumentAsync(user.UserId, InputFile.FromStream(stream, "result.txt"));
 				}
 				else
 				{
-					await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), caption: img.Key.Description, cancellationToken: cancellationToken, parseMode: Telegram.Bot.Types.Enums.ParseMode.Html);
+					await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), caption: img.ImageInfo.Description, cancellationToken: cancellationToken, parseMode: Telegram.Bot.Types.Enums.ParseMode.Html);
 				}
 
-				img.Value.Dispose();
+				img.Dispose();
 				imgMs.Dispose();
 			}
 		}
+		private static MemoryStream TryEncodeImage(ExtendedImage img)
+		{
+			MemoryStream imgMs;
+			try
+			{
+				imgMs = new(CvInvoke.Imencode("." + img.ImageInfo.Name.Split(".").Last(), img));
+			}
+			catch (Emgu.CV.Util.CvException)
+			{
+				imgMs = new(CvInvoke.Imencode(".png", img));
+			}
+
+			return imgMs;
+		}
+
 		private static void ActOnArray<T>(JsonElement.ArrayEnumerator array, Action<T, int, int> callback)
 		{
 			int imageNumber = 0;
@@ -278,101 +298,58 @@ namespace TelegramNeuralServerAPI
 				imageNumber++;
 			}
 		}
-		private static MemoryStream TryEncodeImage(KeyValuePair<ImageInfo, Image<Rgb, byte>> img)
+
+		private static void FaceProcess(PersonProcess person, int imageNumber, int personNumber, LocalUserConfig user, List<ExtendedImage> images)
 		{
-			MemoryStream imgMs;
-			try
+			ExtendedImage currentImage = images[imageNumber];
+			ImageInfo currentInfo = currentImage.ImageInfo;
+			if (person.IsFilled())
 			{
-				imgMs = new(CvInvoke.Imencode("." + img.Key.Name.Split(".").Last(), img.Value));
-			}
-			catch (Emgu.CV.Util.CvException)
-			{
-				imgMs = new(CvInvoke.Imencode(".png", img.Value));
+				currentInfo.TryAdd($"Person id: {personNumber}");
+				person.WrappDescription(currentInfo);
 			}
 
-			return imgMs;
-		}
+			ProcessAssistant assistant = new(person.faceDetector.topLeft, person.faceDetector.bottomRight);
 
-		private static void BuildFaceProcessInfo(LocalUserConfig user, Dictionary<ImageInfo, Image<Rgb, byte>> images, JsonElement.ArrayEnumerator array)
-		{
-			int imageNumber = 0;
-			foreach (JsonElement imageData in array)
+			if ((user.faceProcessess & 1) == 1)
 			{
-				int personNumber = 0;
-				JsonElement data = imageData.GetProperty("data");
-				var peopleData = data.EnumerateArray();
-				if (!peopleData.Any()) { throw new("no data found!"); }
-
-				foreach (JsonElement personData in peopleData)
+				DrawBox(assistant, currentImage);
+			}
+			if (person.fitter is not null && (user.faceProcessess & 2) == 2)
+			{
+				foreach (var point in person.fitter.Value.keypoints)
 				{
-					PersonProcess person = personData.Deserialize<PersonProcess>() ?? throw new("how?..");
-
-					Image<Rgb, byte> currentImage = images.Values.ToArray()[imageNumber];
-					ImageInfo currentInfo = images.Keys.ToArray()[imageNumber];
-					if (person.IsFilled())
-					{
-						currentInfo.TryAdd($"Person id: {personNumber}");
-						person.WrappDescription(currentInfo);
-					}
-
-
-					int width = Math.Abs(person.faceDetector.topLeft.x - person.faceDetector.bottomRight.x);
-					int height = Math.Abs(person.faceDetector.topLeft.y - person.faceDetector.bottomRight.y);
-
-					int thickness = (int)Math.Ceiling(Math.Min(width, height) * 0.01);
-					int borderThickness = (int)Math.Ceiling(thickness * 1.5);
-
-					int textX = person.faceDetector.topLeft.x + thickness * 2;
-					int textY = person.faceDetector.bottomRight.y - thickness * 2;
-					Point textPoint = new(textX, textY);
-
-					if ((user.faceProcessess & 1) == 1) { DrawBox(person.faceDetector.topLeft, currentImage, width, height, thickness, borderThickness); }
-					if (person.fitter is not null && (user.faceProcessess & 2) == 2)
-					{
-						foreach (var point in person.fitter.Value.keypoints)
-						{
-							currentImage.Draw(new CircleF(new(point.x, point.y), thickness), new(System.Drawing.Color.Red));
-						}
-						currentImage.Draw(new CircleF(new(person.fitter.Value.mouth.x, person.fitter.Value.mouth.y), thickness), personColor);
-						currentImage.Draw(new CircleF(new(person.fitter.Value.leftEye.x, person.fitter.Value.leftEye.y), thickness), personColor);
-						currentImage.Draw(new CircleF(new(person.fitter.Value.rightEye.x, person.fitter.Value.rightEye.y), thickness), personColor);
-					}
-
-					DrawText(personNumber.ToString(), currentImage, thickness, borderThickness, textPoint);
-
-					personNumber++;
+					currentImage.Draw(new CircleF(new(point.x, point.y), assistant.thickness), new(System.Drawing.Color.Red));
 				}
-
-				imageNumber++;
+				currentImage.Draw(new CircleF(new(person.fitter.Value.mouth.x, person.fitter.Value.mouth.y), assistant.thickness), personColor);
+				currentImage.Draw(new CircleF(new(person.fitter.Value.leftEye.x, person.fitter.Value.leftEye.y), assistant.thickness), personColor);
+				currentImage.Draw(new CircleF(new(person.fitter.Value.rightEye.x, person.fitter.Value.rightEye.y), assistant.thickness), personColor);
 			}
-		}
-		private static void BuildReIdProcessInfo(Dictionary<ImageInfo, Image<Rgb, byte>> images, JsonElement.ArrayEnumerator array)
-		{
-			ActOnArray
-		}
 
-		private static List<Image<Rgb, byte>> CropImages(Dictionary<ImageInfo, Image<Rgb, byte>> images, JsonElement.ArrayEnumerator array)
+			DrawText(personNumber.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
+		}
+		private static void ReIdProcess(ReIdProcess process, int imageNumber, List<ExtendedImage> images)
 		{
-			List<Image<Rgb, byte>> list = [];
-			int imageNumber = 0;
-			foreach (JsonElement imageData in array)
+
+		}
+		private static void RecognizeProcess(RecognizeProcess person, int imageNumber, int personNumber, List<ExtendedImage> images)
+		{
+			ExtendedImage currentImage = images[imageNumber];
+			ProcessAssistant assistant = new(person.boundingBox.topLeft, person.boundingBox.bottomRight);
+			if (person.verdict)
 			{
-				JsonElement data = imageData.GetProperty("data");
-				var peopleData = data.EnumerateArray();
-				foreach (var personData in peopleData)
-				{
-					RecognizeProcess person = personData.Deserialize<RecognizeProcess>() ?? throw new("how?..");
-
-					int width = Math.Abs(person.boundingBox.topLeft.x - person.boundingBox.bottomRight.x);
-					int height = Math.Abs(person.boundingBox.topLeft.y - person.boundingBox.bottomRight.y);
-
-					using Mat mat = new(images.Values.ToArray()[imageNumber].Mat, new Rectangle(person.boundingBox.topLeft.x, person.boundingBox.topLeft.y, width, height));
-					list.Add(mat.ToImage<Rgb, byte>());
-				}
-				imageNumber++;
+				DrawBox(assistant, currentImage);
 			}
 
-			return list;
+			DrawText(personNumber.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
+		}
+		private static void CropProcess(RecognizeProcess person, int imageNumber, int personNumber, List<Image<Rgb, byte>> list, List<ExtendedImage> images)
+		{
+			ProcessAssistant assistant = new(person.boundingBox.topLeft, person.boundingBox.bottomRight);
+			images[imageNumber].ImageInfo.derivedImages.Add(new(list.Count, personNumber));
+
+			using Mat mat = new(images[imageNumber].Mat, new Rectangle(assistant.topLeft.x, assistant.topLeft.y, assistant.width, assistant.height));
+			list.Add(mat.ToImage<Rgb, byte>());
 		}
 
 		private static void DrawText(string text, Image<Rgb, byte> currentImage, int thickness, int borderThickness, Point point)
@@ -380,10 +357,14 @@ namespace TelegramNeuralServerAPI
 			currentImage.Draw(text, point, Emgu.CV.CvEnum.FontFace.HersheySimplex, 1.0, borderColor, borderThickness);
 			currentImage.Draw(text, point, Emgu.CV.CvEnum.FontFace.HersheySimplex, 1.0, personColor, thickness);
 		}
-		private static void DrawBox(Coordinate topLeftCoord, Image<Rgb, byte> currentImage, int width, int height, int thickness, int borderThickness)
+		private static void DrawBox(ProcessAssistant assistant, Image<Rgb, byte> currentImage)
 		{
-			currentImage.Draw(rect: new(topLeftCoord.x, topLeftCoord.y, width, height), borderColor, borderThickness);
-			currentImage.Draw(rect: new(topLeftCoord.x, topLeftCoord.y, width, height), personColor, thickness);
+			DrawBox(assistant, currentImage, personColor);
+		}
+		private static void DrawBox(ProcessAssistant assistant, Image<Rgb, byte> currentImage, Rgb personColor)
+		{
+			currentImage.Draw(rect: new(assistant.topLeft.x, assistant.topLeft.y, assistant.width, assistant.height), borderColor, assistant.borderThickness);
+			currentImage.Draw(rect: new(assistant.topLeft.x, assistant.topLeft.y, assistant.width, assistant.height), personColor, assistant.thickness);
 		}
 		private static void DisposeEnumerable<T>(IEnumerable<T> values) where T : IDisposable
 		{

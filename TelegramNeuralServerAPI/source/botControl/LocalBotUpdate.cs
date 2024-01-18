@@ -21,6 +21,7 @@ using Emgu.CV.Ocl;
 using static Emgu.CV.Dai.OpenVino;
 using SettingsGenerator;
 using Emgu.CV.Util;
+using Emgu.CV.CvEnum;
 
 namespace TelegramNeuralServerAPI
 {
@@ -175,7 +176,7 @@ namespace TelegramNeuralServerAPI
 							for (var i = 0; i <= images.Count / 10; i++)
 							{
 								var tmp = images.Take(new System.Range(i * 10, (i + 1) * 10));
-								if (!tmp.Any()) { return; }
+								if (!tmp.Any()) { break; }
 
 								await botClient.SendMediaGroupAsync(user.UserId, tmp.Select((a, it) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(images[i + it])))));
 							}
@@ -233,25 +234,40 @@ namespace TelegramNeuralServerAPI
 		}
 		private async Task ThrowImages(LocalUserConfig user, List<ExtendedImage> images)
 		{
-			foreach (var img in images)
+			bool bulk = images.TrueForAll((a) => string.IsNullOrEmpty(a.ImageInfo.Description)) && images.Count > 1;
+
+			if (bulk)
 			{
-				MemoryStream imgMs = TryEncodeImage(img);
-
-				if (img.ImageInfo.Description?.Length > 1023)
+				for (var i = 0; i <= images.Count / 10; i++)
 				{
-					await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), cancellationToken: cancellationToken);
-					using MemoryStream stream = new(Encoding.ASCII.GetBytes(img.ImageInfo.RawDescription!));
+					var tmp = images.Take(new System.Range(i * 10, (i + 1) * 10));
+					if (!tmp.Any()) { break; }
 
-					await botClient.SendDocumentAsync(user.UserId, InputFile.FromStream(stream, "result.txt"));
+					await botClient.SendMediaGroupAsync(user.UserId, tmp.Select((a, it) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(images[i + it])))));
 				}
-				else
-				{
-					await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), caption: img.ImageInfo.Description, cancellationToken: cancellationToken, parseMode: Telegram.Bot.Types.Enums.ParseMode.Html);
-				}
-
-				img.Dispose();
-				imgMs.Dispose();
 			}
+			else
+			{
+				foreach (var img in images)
+				{
+					MemoryStream imgMs = TryEncodeImage(img);
+
+
+					if (img.ImageInfo.Description?.Length > 1023)
+					{
+						await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), cancellationToken: cancellationToken);
+						using MemoryStream stream = new(Encoding.ASCII.GetBytes(img.ImageInfo.RawDescription!));
+
+						await botClient.SendDocumentAsync(user.UserId, InputFile.FromStream(stream, "result.txt"));
+					}
+					else
+					{
+						await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), caption: img.ImageInfo.Description, cancellationToken: cancellationToken, parseMode: Telegram.Bot.Types.Enums.ParseMode.Html);
+					}					
+					imgMs.Dispose();
+				}
+			}
+			DisposeEnumerable(images);
 		}
 		private static MemoryStream TryEncodeImage(ExtendedImage img)
 		{

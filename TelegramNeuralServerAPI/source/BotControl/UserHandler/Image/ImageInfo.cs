@@ -11,7 +11,7 @@ namespace TelegramNeuralServerAPI
 		public readonly string Name = name;
 		public string? Description = description;
 		public string? RawDescription { get => Description?.Replace("<pre>", "").Replace("</pre>", ""); }
-		public readonly List<Coordinate> derivedImages = [];
+		public readonly Dictionary<int, PersonProcess> derivedImages = [];
 
 		public void TryAdd(string? newString)
 		{

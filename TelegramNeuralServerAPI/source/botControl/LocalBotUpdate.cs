@@ -19,6 +19,8 @@ using Emgu.CV.ImgHash;
 using static System.Net.Mime.MediaTypeNames;
 using Emgu.CV.Ocl;
 using static Emgu.CV.Dai.OpenVino;
+using SettingsGenerator;
+using Emgu.CV.Util;
 
 namespace TelegramNeuralServerAPI
 {
@@ -89,7 +91,7 @@ namespace TelegramNeuralServerAPI
 
 						if (array.Count() != images.Count) { throw new("count missmatch"); }
 
-						ActOnArray<PersonProcess>(array, (process, imN, perN) => FaceProcess(process, imN, perN, user, images));
+						ActOnArray<PersonProcess>(array, (process, imN, perN) => FaceProcess(process, imN, perN, user, images), true);
 
 						await ThrowImages(user, images);
 						user.images.Clear();
@@ -109,13 +111,14 @@ namespace TelegramNeuralServerAPI
 						if (bodyDetectorArray.Count() != images.Count) { throw new("count missmatch"); }
 
 						List<Image<Rgb, byte>> croppedImages = [];
-						ActOnArray<RecognizeProcess>(bodyDetectorArray, (process, imageN, personN) => CropProcess(process, imageN, personN, croppedImages, images));
+
+						ActOnArray<PersonProcess>(bodyDetectorArray, (process, imageN, personN) => CropProcess(process, imageN, personN, croppedImages, images), true);
 
 						string response = await requestHandler.LaunchProcess(new ReIdRequest([.. croppedImages.TakeLast(images.Count - 1).Select((a) => new LocalImage(a))], new(croppedImages.First())));
 						DisposeEnumerable(croppedImages);
 						JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
 
-						ActOnArray<ReIdProcess>(array, (process, imageN)=>ReIdProcess(process, imageN, images));
+						ActOnArray<ReIdProcess>(array, (process, imageN) => ReIdProcess(process, imageN, images.TakeLast(images.Count - 1).ToList()));
 
 						await ThrowImages(user, images);
 						user.images.Clear();
@@ -133,7 +136,7 @@ namespace TelegramNeuralServerAPI
 						string response = await requestHandler.LaunchProcess(new RecognizeRequest([.. images.TakeLast(images.Count - 1).Select((a) => new LocalImage(a))], new(images.First())));
 						JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
 
-						ActOnArray<RecognizeProcess>(array, (process, imN, perN) => RecognizeProcess(process, imN, perN, images));
+						ActOnArray<RecognizeProcess>(array, (process, imN, perN) => RecognizeProcess(process, imN, perN, images.TakeLast(images.Count - 1).ToList()));
 
 						await ThrowImages(user, images);
 						user.images.Clear();
@@ -221,10 +224,12 @@ namespace TelegramNeuralServerAPI
 			await botClient.DownloadFileAsync(file.FilePath!, stream);
 
 			using Mat mat = new();
+			using Mat matRgb = new();
 
 			CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
+			CvInvoke.CvtColor(mat, matRgb, Emgu.CV.CvEnum.ColorConversion.Rgb2Bgr);
 
-			return new(mat, new(file.FilePath!.Split("/").Last()));
+			return new(matRgb, new(file.FilePath!.Split("/").Last()));
 		}
 		private async Task ThrowImages(LocalUserConfig user, List<ExtendedImage> images)
 		{
@@ -263,7 +268,7 @@ namespace TelegramNeuralServerAPI
 			return imgMs;
 		}
 
-		private static void ActOnArray<T>(JsonElement.ArrayEnumerator array, Action<T, int, int> callback)
+		private static void ActOnArray<T>(JsonElement.ArrayEnumerator array, Action<T, int, int> callback, bool hasData = false)
 		{
 			int imageNumber = 0;
 			if (!array.Any()) { throw new("no data found!"); }
@@ -271,8 +276,10 @@ namespace TelegramNeuralServerAPI
 			foreach (JsonElement imageData in array)
 			{
 				int personNumber = 0;
-				JsonElement data = imageData.GetProperty("data");
+
+				JsonElement data = hasData ? imageData.GetProperty("data") : imageData;
 				var peopleData = data.EnumerateArray();
+
 				if (!peopleData.Any()) { throw new("no data found!"); }
 
 				foreach (JsonElement personData in peopleData)
@@ -309,7 +316,7 @@ namespace TelegramNeuralServerAPI
 				person.WrappDescription(currentInfo);
 			}
 
-			ProcessAssistant assistant = new(person.faceDetector.topLeft, person.faceDetector.bottomRight);
+			ProcessAssistant assistant = new(person.boundingBox.topLeft, person.boundingBox.bottomRight);
 
 			if ((user.faceProcessess & 1) == 1)
 			{
@@ -328,9 +335,19 @@ namespace TelegramNeuralServerAPI
 
 			DrawText(personNumber.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
 		}
-		private static void ReIdProcess(ReIdProcess process, int imageNumber, List<ExtendedImage> images)
+		private static void ReIdProcess(ReIdProcess person, int imageNumber, List<ExtendedImage> images)
 		{
+			ExtendedImage currentImage = images.Find((a) => a.ImageInfo.derivedImages.ContainsKey(imageNumber))!;
+			PersonProcess currentPerson = currentImage.ImageInfo.derivedImages[imageNumber];
+			int i = currentImage.ImageInfo.derivedImages.Values.ToList().IndexOf(currentPerson);
+			ProcessAssistant assistant = new(currentPerson.boundingBox);
 
+			if (person.verdict)
+			{
+				DrawBox(assistant, currentImage);
+			}
+
+			DrawText(i.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
 		}
 		private static void RecognizeProcess(RecognizeProcess person, int imageNumber, int personNumber, List<ExtendedImage> images)
 		{
@@ -343,10 +360,10 @@ namespace TelegramNeuralServerAPI
 
 			DrawText(personNumber.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
 		}
-		private static void CropProcess(RecognizeProcess person, int imageNumber, int personNumber, List<Image<Rgb, byte>> list, List<ExtendedImage> images)
+		private static void CropProcess(PersonProcess person, int imageNumber, int personNumber, List<Image<Rgb, byte>> list, List<ExtendedImage> images)
 		{
 			ProcessAssistant assistant = new(person.boundingBox.topLeft, person.boundingBox.bottomRight);
-			images[imageNumber].ImageInfo.derivedImages.Add(new(list.Count, personNumber));
+			images[imageNumber].ImageInfo.derivedImages.Add(list.Count, person);
 
 			using Mat mat = new(images[imageNumber].Mat, new Rectangle(assistant.topLeft.x, assistant.topLeft.y, assistant.width, assistant.height));
 			list.Add(mat.ToImage<Rgb, byte>());

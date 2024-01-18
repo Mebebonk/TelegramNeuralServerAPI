@@ -40,5 +40,6 @@ namespace TelegramNeuralServerAPI
 		}
 
 		public ProcessAssistant(int tlx, int tly, int brx, int bry) : this(new(tlx, tly), new(brx, bry)) { }
+		public ProcessAssistant(BoundingBox box) : this(box.topLeft, box.bottomRight) { }
 	}
 }

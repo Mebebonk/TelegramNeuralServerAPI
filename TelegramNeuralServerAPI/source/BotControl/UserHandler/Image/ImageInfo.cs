@@ -8,7 +8,7 @@ namespace TelegramNeuralServerAPI
 {
 	internal class ImageInfo(string name, string? description = null)
 	{
-		public readonly string Name = name;
+		public string Name = name;
 		public string? Description = description;
 		public string? RawDescription { get => Description?.Replace("<pre>", "").Replace("</pre>", ""); }
 		public readonly Dictionary<int, PersonProcess> derivedImages = [];

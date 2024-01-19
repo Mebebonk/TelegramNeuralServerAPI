@@ -41,11 +41,17 @@ namespace TelegramNeuralServerAPI
 
 				PhotoSize? photo = message.Photo?.Last();
 
-				if (photo != null) { _ = RealisePhoto(update.Message!.Photo!.Last().FileId); }
+				if (photo != null)
+				{
+					_ = RealisePhoto(update.Message!.Photo!.Last().FileId);
+				}
 
 				bool? mimeImg = message.Document?.MimeType?.Contains("image");
 
-				if (mimeImg != null && (bool)mimeImg) { _ = RealisePhoto(message.Document!.FileId); }
+				if (mimeImg != null && (bool)mimeImg)
+				{
+					_ = RealisePhoto(message.Document!.FileId);
+				}
 
 				return;
 			}
@@ -173,12 +179,20 @@ namespace TelegramNeuralServerAPI
 						await PrepareImages(user, images);
 						if (images.Count > 1)
 						{
-							for (var i = 0; i <= images.Count / 10; i++)
+							if (images.Count > 10)
 							{
-								var tmp = images.Take(new System.Range(i * 10, (i + 1) * 10));
-								if (!tmp.Any()) { break; }
+								for (var i = 0; i < images.Count / 10; i++)
+								{
+									var tmp = images.Take(new System.Range(i * 10, (i + 1) * 10));
 
-								await botClient.SendMediaGroupAsync(user.UserId, tmp.Select((a, it) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(images[i + it])))));
+									await botClient.SendMediaGroupAsync(user.UserId, tmp.Select((a) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(a), a.ImageInfo.Name))));
+								}
+							}
+							else
+							{
+								var tmp = images.Take(10);
+
+								await botClient.SendMediaGroupAsync(user.UserId, tmp.Select((a) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(a), a.ImageInfo.Name))));
 							}
 						}
 						else
@@ -214,7 +228,9 @@ namespace TelegramNeuralServerAPI
 
 			foreach (var task in tasks)
 			{
-				images.Add(task.Result);
+				ExtendedImage image = task.Result;
+				image.ImageInfo.Name = $"{images.Count}_{image.ImageInfo.Name}";
+				images.Add(image);
 			}
 		}
 		private async Task<ExtendedImage> PrepareImageAsync(string image)
@@ -230,20 +246,38 @@ namespace TelegramNeuralServerAPI
 			CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
 			CvInvoke.CvtColor(mat, matRgb, Emgu.CV.CvEnum.ColorConversion.Rgb2Bgr);
 
-			return new(matRgb, new(file.FilePath!.Split("/").Last()));
+			return new(matRgb, new("photo_" + DateTime.Now.ToString("MM_d_yyyy_H_mm_ss_") + file.FilePath!.Split(".").Last()));
 		}
 		private async Task ThrowImages(LocalUserConfig user, List<ExtendedImage> images)
 		{
-			bool bulk = images.TrueForAll((a) => string.IsNullOrEmpty(a.ImageInfo.Description)) && images.Count > 1;
+			bool bulk = images.TrueForAll((a) => string.IsNullOrWhiteSpace(a.ImageInfo.Description)) && images.Count > 1;
 
 			if (bulk)
 			{
-				for (var i = 0; i <= images.Count / 10; i++)
+				if (images.Count > 10)
 				{
-					var tmp = images.Take(new System.Range(i * 10, (i + 1) * 10));
-					if (!tmp.Any()) { break; }
+					for (var i = 0; i < images.Count / 10; i++)
+					{
+						var tmp = images.Take(new System.Range(i * 10, (i + 1) * 10));
+						var bulkImg = tmp.Select((a) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(a), a.ImageInfo.Name)));
 
-					await botClient.SendMediaGroupAsync(user.UserId, tmp.Select((a, it) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(images[i + it])))));
+						await botClient.SendMediaGroupAsync(user.UserId, bulkImg);
+					}
+				}
+				else
+				{
+					var tmp = images.Take(10);
+					var bulkImg = tmp.Select((a) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(a), a.ImageInfo.Name)));
+
+					List<InputMediaPhoto> imgs = [];
+
+					foreach (var img in tmp)
+					{
+						MemoryStream a = TryEncodeImage(img);
+						imgs.Add(new(InputFile.FromStream(a, img.ImageInfo.Name)));
+					}
+
+					await botClient.SendMediaGroupAsync(user.UserId, imgs);
 				}
 			}
 			else
@@ -251,7 +285,6 @@ namespace TelegramNeuralServerAPI
 				foreach (var img in images)
 				{
 					MemoryStream imgMs = TryEncodeImage(img);
-
 
 					if (img.ImageInfo.Description?.Length > 1023)
 					{
@@ -263,7 +296,7 @@ namespace TelegramNeuralServerAPI
 					else
 					{
 						await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), caption: img.ImageInfo.Description, cancellationToken: cancellationToken, parseMode: Telegram.Bot.Types.Enums.ParseMode.Html);
-					}					
+					}
 					imgMs.Dispose();
 				}
 			}

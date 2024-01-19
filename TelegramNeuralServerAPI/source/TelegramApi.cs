@@ -101,6 +101,7 @@ namespace TelegramNeuralServerAPI
 					new() { Command = BotGlobals.faceProcessSettingsCommandName, Description = "Change face processess" },
 					new() { Command = BotGlobals.launchRecognizeCommandName, Description = "Launch face recognize" },
 					new() { Command = BotGlobals.launchReIdCommandName, Description = "Launch body reidentify" },
+					new() { Command = BotGlobals.launchReIdTestCommandName, Description = "Test for body reidentify" },
 					new() { Command = BotGlobals.flushCommandName, Description = "Flush images" },
 					new() { Command = BotGlobals.showQueueCommandName, Description = "Show queued images" },
 					new() { Command = BotGlobals.helpCommandName, Description = "Get bot help" }

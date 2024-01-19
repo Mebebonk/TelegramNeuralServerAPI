@@ -147,7 +147,7 @@ namespace TelegramNeuralServerAPI
 
 						if (array.Count() != images.Count) { throw new("count missmatch"); }
 
-						ActOnArray<PersonProcess>(array, (process, imgN, perN)=> FaceProcess(process, imgN, perN, user, images));
+						ActOnArray<PersonProcess>(array, (process, imgN, perN)=> FaceProcess(process, imgN, perN, user, images), true);
 
 						await ThrowImages(user, images);
 					}

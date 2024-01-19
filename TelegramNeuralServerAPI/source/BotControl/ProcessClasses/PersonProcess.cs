@@ -187,6 +187,7 @@ namespace TelegramNeuralServerAPI
 			return $"Glasses:\n<pre>Has glasses: {hasGlasses}\nConfidence: {confidence}</pre>";
 		}
 	}
+
 	[method: JsonConstructor]
 	internal readonly struct EyeOpennessEstimator(bool isLeftEyeOpen, bool isRightEyeOpen, float leftEyeOpenConfidence, float rightEyeOpenConfidence)
 	{

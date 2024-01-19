@@ -176,31 +176,16 @@ namespace TelegramNeuralServerAPI
 
 						List<ExtendedImage> images = [];
 						await PrepareImages(user, images);
+
 						if (images.Count > 1)
 						{
-							if (images.Count > 10)
-							{
-								for (var i = 0; i < images.Count / 10; i++)
-								{
-									var tmp = images.Take(new System.Range(i * 10, (i + 1) * 10));
-
-									await botClient.SendMediaGroupAsync(user.UserId, tmp.Select((a) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(a), a.ImageInfo.Name))));
-								}
-							}
-							else
-							{
-								var tmp = images.Take(10);
-
-								await botClient.SendMediaGroupAsync(user.UserId, tmp.Select((a) => new InputMediaPhoto(InputFile.FromStream(TryEncodeImage(a), a.ImageInfo.Name))));
-							}
+							await BulkThrow(user, images, "");
 						}
 						else
 						{
-							MemoryStream imgMs = TryEncodeImage(images[0]);
-
-							await botClient.SendPhotoAsync(user.UserId, InputFile.FromStream(imgMs), cancellationToken: cancellationToken);
-							imgMs.Dispose();
+							await ThrowSingle(user, images[0]);
 						}
+
 						DisposeEnumerable(images);
 					}
 					return;
@@ -345,8 +330,7 @@ namespace TelegramNeuralServerAPI
 				var tmp = bulk.Take(10);
 				await ThrowMany(user, tmp);
 			}
-
-			await botClient.SendTextMessageAsync(user.UserId, $"^^ {message} ^^", cancellationToken: cancellationToken);
+			if (!string.IsNullOrEmpty(message)) { await botClient.SendTextMessageAsync(user.UserId, $"^^ {message} ^^", cancellationToken: cancellationToken); }
 		}
 		private async Task ThrowMany(LocalUserConfig user, IEnumerable<ExtendedImage> tmp)
 		{

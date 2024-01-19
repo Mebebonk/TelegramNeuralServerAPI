@@ -1,13 +1,15 @@
-﻿using System;
+﻿using Emgu.CV.CvEnum;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace TelegramNeuralServerAPI
 {
-	internal class PersonProcess(BoundingBox boundingBox, Fitter? fitter, AgeEstimator? ageEstimator, LivenessEstimator? livenessEstimator, GenderEstimator? genderEstimator, EmotionEstimator? emotionEstimator, MaskEstimator? maskEstimator, GlassesEstimator? glassesEstimator)
+	internal class PersonProcess(BoundingBox boundingBox, Fitter? fitter, AgeEstimator? ageEstimator, LivenessEstimator? livenessEstimator, GenderEstimator? genderEstimator, EmotionEstimator? emotionEstimator, MaskEstimator? maskEstimator, GlassesEstimator? glassesEstimator, EyeOpennessEstimator? eyeOpennessEstimator)
 	{
 
 		[JsonInclude]
@@ -39,6 +41,10 @@ namespace TelegramNeuralServerAPI
 		public MaskEstimator? maskEstimator = maskEstimator;
 
 		[JsonInclude]
+		[JsonPropertyName("EYE_OPENNESS_ESTIMATOR")]
+		public EyeOpennessEstimator? eyeOpennessEstimator = eyeOpennessEstimator;
+
+		[JsonInclude]
 		[JsonPropertyName("GLASSES_ESTIMATOR")]
 		public GlassesEstimator? glassesEstimator = glassesEstimator;
 
@@ -49,6 +55,7 @@ namespace TelegramNeuralServerAPI
 			nfo.TryAdd(genderEstimator?.ToString());
 			nfo.TryAdd(emotionEstimator?.ToString());
 			nfo.TryAdd(maskEstimator?.ToString());
+			nfo.TryAdd(eyeOpennessEstimator?.ToString());
 			nfo.TryAdd(glassesEstimator?.ToString());
 		}
 
@@ -59,7 +66,8 @@ namespace TelegramNeuralServerAPI
 				genderEstimator is not null ||
 				emotionEstimator is not null ||
 				maskEstimator is not null ||
-				glassesEstimator is not null;
+				glassesEstimator is not null||
+				eyeOpennessEstimator is not null;
 		}
 	}
 
@@ -177,6 +185,26 @@ namespace TelegramNeuralServerAPI
 		public override string ToString()
 		{
 			return $"Glasses:\n<pre>Has glasses: {hasGlasses}\nConfidence: {confidence}</pre>";
+		}
+	}
+	[method: JsonConstructor]
+	internal readonly struct EyeOpennessEstimator(bool isLeftEyeOpen, bool isRightEyeOpen, float leftEyeOpenConfidence, float rightEyeOpenConfidence)
+	{
+		[JsonInclude]
+		[JsonPropertyName("isLeftEyeOpen")]
+		public readonly bool isLeftEyeOpen = isLeftEyeOpen;
+		[JsonInclude]
+		[JsonPropertyName("isRightEyeOpen")]
+		public readonly bool isRightEyeOpen = isRightEyeOpen;
+		[JsonInclude]
+		[JsonPropertyName("leftEyeOpenConfidence")]
+		public readonly float leftEyeOpenConfidence = leftEyeOpenConfidence;
+		[JsonInclude]
+		[JsonPropertyName("rightEyeOpenConfidence")]
+		public readonly float rightEyeOpenConfidence = rightEyeOpenConfidence;
+		public override string ToString()
+		{
+			return $"Eye openness:\n<pre>Is left eye open: {isLeftEyeOpen}\nConfidence: {leftEyeOpenConfidence}\nIs right eye open: {isRightEyeOpen}\nConfidence: {rightEyeOpenConfidence}</pre>";
 		}
 	}
 }

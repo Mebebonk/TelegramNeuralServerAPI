@@ -281,22 +281,29 @@ namespace TelegramNeuralServerAPI
 				}
 			}
 
-			if (bulk.Count > 1)
-			{				
-				await BulkThrow(user, bulk, "No description photos");
-			}
-			else
+			if (bulk.Count > 0)
 			{
-				await ThrowSingle(user, bulk[0]);
-			}
 
-			if (bulkInvalid.Count > 1)
-			{
-				await BulkThrow(user, bulkInvalid, "No data photos");
+				if (bulk.Count > 1)
+				{
+					await BulkThrow(user, bulk, "No description photos");
+				}
+				else
+				{
+					await ThrowSingle(user, bulk[0]);
+				}
 			}
-			else
+			if (bulkInvalid.Count > 0)
 			{
-				await ThrowSingle(user, bulkInvalid[0]);
+
+				if (bulkInvalid.Count > 1)
+				{
+					await BulkThrow(user, bulkInvalid, "No data photos");
+				}
+				else
+				{
+					await ThrowSingle(user, bulkInvalid[0]);
+				}
 			}
 
 			DisposeEnumerable(images);

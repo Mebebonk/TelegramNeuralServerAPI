@@ -12,6 +12,8 @@ namespace TelegramNeuralServerAPI
 		public const string faceProcessSettingsCommandName = "face_process_settings";
 
 		public const string launchReIdCommandName = "launch_re_id";
+		public const string launchReIdTestCommandName = "launch_re_id_test";
+
 		public const string launchRecognizeCommandName = "launch_recognize";
 
 		public const string flushCommandName = "flush";

@@ -104,7 +104,6 @@ namespace TelegramNeuralServerAPI
 						await ThrowImages(user, images);
 					}
 					return;
-
 				//body reidentification
 				case BotGlobals.launchReIdCommandName:
 					{
@@ -123,11 +122,32 @@ namespace TelegramNeuralServerAPI
 
 						ActOnArray<PersonProcess>(bodyDetectorArray, (process, imageN, personN) => CropProcess(process, imageN, personN, croppedImages, images), true);
 
+						if(croppedImages.Count == 0) { await ThrowImages(user, images); return; }
+
 						string response = await requestHandler.LaunchProcess(new ReIdRequest([.. croppedImages.TakeLast(images.Count - 1).Select((a) => new LocalImage(a))], new(croppedImages.First())));
 						DisposeEnumerable(croppedImages);
 						JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
 
 						ActOnArray<ReIdProcess>(array, (process, imageN) => ReIdProcess(process, imageN, images.TakeLast(images.Count - 1).ToList()));
+
+						await ThrowImages(user, images);
+					}
+					return;
+				//reid test
+				case BotGlobals.launchReIdTestCommandName:
+					{
+						LocalUserConfig user = await userCfg;
+
+						if (user.images.Count < 2) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "Not enough images! Min: 2", cancellationToken: cancellationToken); return; }
+						List<ExtendedImage> images = [];
+
+						await PrepareImages(user, images);
+						string response = await requestHandler.LaunchProcess(new InferRequest([.. images.Select((a) => new LocalImage(a))], ["HUMAN_BODY_DETECTOR"]));
+						JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
+
+						if (array.Count() != images.Count) { throw new("count missmatch"); }
+
+						ActOnArray<PersonProcess>(array, (process, imgN, perN)=> FaceProcess(process, imgN, perN, user, images));
 
 						await ThrowImages(user, images);
 					}
@@ -400,13 +420,14 @@ namespace TelegramNeuralServerAPI
 			}
 		}
 
-		private static void FaceProcess(PersonProcess? person, int imageNumber, int personNumber, LocalUserConfig user, List<ExtendedImage> images)
+		private static void FaceProcess(PersonProcess? person, int imageNumber, int personNumber, LocalUserConfig user, List<ExtendedImage> images, bool forceBox = false)
 		{
 			ExtendedImage currentImage = images[imageNumber];
 			ImageInfo currentInfo = currentImage.ImageInfo;
 
 			if (person != null)
 			{
+				currentInfo.IsValid = true;
 				if (person.IsFilled())
 				{
 					currentInfo.TryAdd($"Person id: {personNumber}");
@@ -415,7 +436,7 @@ namespace TelegramNeuralServerAPI
 
 				ProcessAssistant assistant = new(person.boundingBox.topLeft, person.boundingBox.bottomRight);
 
-				if ((user.faceProcessess & 1) == 1)
+				if ((user.faceProcessess & 1) == 1 || forceBox)
 				{
 					DrawBox(assistant, currentImage);
 				}
@@ -431,11 +452,7 @@ namespace TelegramNeuralServerAPI
 				}
 
 				DrawText(personNumber.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
-			}
-			else
-			{
-				currentInfo.IsValid = false;
-			}
+			}			
 		}
 		private static void ReIdProcess(ReIdProcess? person, int imageNumber, List<ExtendedImage> images)
 		{
@@ -443,6 +460,7 @@ namespace TelegramNeuralServerAPI
 
 			if (person != null)
 			{
+				currentImage.ImageInfo.IsValid = true;
 				PersonProcess currentPerson = currentImage.ImageInfo.derivedImages[imageNumber];
 				int i = currentImage.ImageInfo.derivedImages.Values.ToList().IndexOf(currentPerson);
 				ProcessAssistant assistant = new(currentPerson.boundingBox);
@@ -454,17 +472,13 @@ namespace TelegramNeuralServerAPI
 
 				DrawText(i.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
 			}
-			else
-			{
-				currentImage.ImageInfo.IsValid = false;
-			}
 		}
 		private static void RecognizeProcess(RecognizeProcess? person, int imageNumber, int personNumber, List<ExtendedImage> images)
 		{
 			ExtendedImage currentImage = images[imageNumber];
 			if (person != null)
 			{
-
+				currentImage.ImageInfo.IsValid = true;
 				ProcessAssistant assistant = new(person.boundingBox.topLeft, person.boundingBox.bottomRight);
 				if (person.verdict)
 				{
@@ -472,11 +486,7 @@ namespace TelegramNeuralServerAPI
 				}
 
 				DrawText(personNumber.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
-			}
-			else
-			{
-				currentImage.ImageInfo.IsValid = false;
-			}
+			}			
 		}
 		private static void CropProcess(PersonProcess? person, int imageNumber, int personNumber, List<Image<Rgb, byte>> list, List<ExtendedImage> images)
 		{
@@ -488,6 +498,7 @@ namespace TelegramNeuralServerAPI
 				using Mat mat = new(images[imageNumber].Mat, new Rectangle(assistant.topLeft.x, assistant.topLeft.y, assistant.width, assistant.height));
 				list.Add(mat.ToImage<Rgb, byte>());
 			}
+			//TODO: check for no-data crop
 		}
 
 		private static void DrawText(string text, Image<Rgb, byte> currentImage, int thickness, int borderThickness, Point point)

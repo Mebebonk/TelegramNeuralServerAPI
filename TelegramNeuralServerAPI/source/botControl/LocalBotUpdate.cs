@@ -104,6 +104,7 @@ namespace TelegramNeuralServerAPI
 						await ThrowImages(user, images);
 					}
 					return;
+
 				//body reidentification
 				case BotGlobals.launchReIdCommandName:
 					{
@@ -292,9 +293,6 @@ namespace TelegramNeuralServerAPI
 			}
 
 			DisposeEnumerable(images);
-			DisposeEnumerable(bulk);
-			DisposeEnumerable(bulkInvalid);
-
 			ClearImagesList(user);
 		}
 		private async Task ThrowSingle(LocalUserConfig user, ExtendedImage image)

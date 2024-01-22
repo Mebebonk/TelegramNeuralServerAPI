@@ -61,14 +61,14 @@ namespace TelegramNeuralServerAPI
 				{
 					case UpdateType.Message:
 						{
-							await new LocalBotUpdate(botClient, update, _userData.GetUser(update.Message!.From!.Id), _requestHandler, cancellationToken).RealiseMessage();
-
+							await new LocalBotUpdate(botClient, update, _userData.GetUser(update.Message!.From!), _requestHandler, cancellationToken).RealiseMessage();
+							
 							return;
 						}
 					case UpdateType.PollAnswer:
 						{
 
-							await new LocalBotUpdate(botClient, update, _userData.GetUser(update.PollAnswer!.User.Id), _requestHandler, cancellationToken).RealiseVote();
+							await new LocalBotUpdate(botClient, update, _userData.GetUser(update.PollAnswer!.User), _requestHandler, cancellationToken).RealiseVote();
 
 							return;
 						}

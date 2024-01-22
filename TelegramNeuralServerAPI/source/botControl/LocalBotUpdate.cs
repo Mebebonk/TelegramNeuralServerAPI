@@ -488,7 +488,7 @@ namespace TelegramNeuralServerAPI
 				DrawText(personNumber.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
 			}			
 		}
-		private static void CropProcess(PersonProcess? person, int imageNumber, int personNumber, List<Image<Rgb, byte>> list, List<ExtendedImage> images)
+		private static void CropProcess(PersonProcess? person, int imageNumber, int _, List<Image<Rgb, byte>> list, List<ExtendedImage> images)
 		{
 			if (person != null)
 			{

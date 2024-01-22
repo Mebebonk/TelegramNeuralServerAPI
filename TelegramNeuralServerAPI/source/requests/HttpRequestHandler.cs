@@ -36,7 +36,7 @@ namespace TelegramNeuralServerAPI
 
 			if (!response.IsSuccessStatusCode) { throw new($"Response error: {returnString}"); }
 
-			return returnString == null ? throw new("response fail!") : returnString!;
+			return returnString ?? throw new("response fail!");
 		}
 	}
 }

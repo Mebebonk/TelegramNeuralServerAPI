@@ -86,7 +86,7 @@ namespace TelegramNeuralServerAPI
 			switch (newCommand)
 			{
 				//face processess
-				case BotGlobals.launchCommandName:
+				case BotGlobals.launchfaceProcessCommandName:
 					{
 						LocalUserConfig user = await userCfg;
 

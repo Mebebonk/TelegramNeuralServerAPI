@@ -113,7 +113,7 @@ namespace TelegramNeuralServerAPI
 						List<ExtendedImage> images = [];
 
 						await PrepareImages(user, images);
-						string responseBodyDetector = await requestHandler.LaunchProcess(new InferRequest([.. images.Select((a) => new LocalImage(a))], ["HUMAN_BODY_DETECTOR"]));
+						string responseBodyDetector = await requestHandler.LaunchProcess(new BodyDetectorRequest([.. images.Select((a) => new LocalImage(a))]));
 						JsonElement.ArrayEnumerator bodyDetectorArray = JsonDocument.Parse(responseBodyDetector).RootElement.GetProperty("result").EnumerateArray();
 
 						if (bodyDetectorArray.Count() != images.Count) { throw new("count missmatch"); }
@@ -142,7 +142,7 @@ namespace TelegramNeuralServerAPI
 						List<ExtendedImage> images = [];
 
 						await PrepareImages(user, images);
-						string response = await requestHandler.LaunchProcess(new InferRequest([.. images.Select((a) => new LocalImage(a))], ["HUMAN_BODY_DETECTOR"]));
+						string response = await requestHandler.LaunchProcess(new BodyDetectorRequest([.. images.Select((a) => new LocalImage(a))]));
 						JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
 
 						if (array.Count() != images.Count) { throw new("count missmatch"); }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace TelegramNeuralServerAPI
 {
-	internal class ReIdRequest(LocalImage[] images, LocalImage referenceImage, float verifyThreshold = 100.0f, bool allowMultipleBodies = true) : RecognizeRequest(images, referenceImage, verifyThreshold, "/body_reidentify")
+	internal class ReIdRequest(LocalImage[] images, LocalImage referenceImage, float verifyThreshold = 80f, bool allowMultipleBodies = true) : RecognizeRequest(images, referenceImage, verifyThreshold, "/body_reidentify")
 	{	
 		[JsonInclude]
 		public bool allowMultipleBodies = allowMultipleBodies;			

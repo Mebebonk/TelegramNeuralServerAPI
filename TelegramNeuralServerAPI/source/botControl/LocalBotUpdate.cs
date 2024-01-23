@@ -122,9 +122,10 @@ namespace TelegramNeuralServerAPI
 
 						ActOnArray<PersonProcess>(bodyDetectorArray, (process, imageN, personN) => CropProcess(process, imageN, personN, croppedImages, images), true);
 
-						if(croppedImages.Count == 0) { await ThrowImages(user, images); return; }
+						if (croppedImages.Count == 0) { await ThrowImages(user, images); return; }
+					
+						string response = await requestHandler.LaunchProcess(new ReIdRequest([.. croppedImages.TakeLast(croppedImages.Count - 1).Select((a) => new LocalImage(a))], new(croppedImages.First())));
 
-						string response = await requestHandler.LaunchProcess(new ReIdRequest([.. croppedImages.TakeLast(images.Count - 1).Select((a) => new LocalImage(a))], new(croppedImages.First())));
 						DisposeEnumerable(croppedImages);
 						JsonElement.ArrayEnumerator array = JsonDocument.Parse(response).RootElement.GetProperty("result").EnumerateArray();
 
@@ -138,7 +139,7 @@ namespace TelegramNeuralServerAPI
 					{
 						LocalUserConfig user = await userCfg;
 
-						if (user.images.Count < 2) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "Not enough images! Min: 2", cancellationToken: cancellationToken); return; }
+						if (user.images.Count == 0) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "No images found!", cancellationToken: cancellationToken); return; }
 						List<ExtendedImage> images = [];
 
 						await PrepareImages(user, images);
@@ -147,7 +148,7 @@ namespace TelegramNeuralServerAPI
 
 						if (array.Count() != images.Count) { throw new("count missmatch"); }
 
-						ActOnArray<PersonProcess>(array, (process, imgN, perN)=> FaceProcess(process, imgN, perN, user, images), true);
+						ActOnArray<PersonProcess>(array, (process, imgN, perN) => FaceProcess(process, imgN, perN, user, images, true), true);
 
 						await ThrowImages(user, images);
 					}
@@ -436,7 +437,7 @@ namespace TelegramNeuralServerAPI
 
 				ProcessAssistant assistant = new(person.boundingBox.topLeft, person.boundingBox.bottomRight);
 
-				if ((user.faceProcessess & 1) == 1 || forceBox)
+				if (((user.faceProcessess & 1) == 1) || forceBox)
 				{
 					DrawBox(assistant, currentImage);
 				}
@@ -452,7 +453,7 @@ namespace TelegramNeuralServerAPI
 				}
 
 				DrawText(personNumber.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
-			}			
+			}
 		}
 		private static void ReIdProcess(ReIdProcess? person, int imageNumber, List<ExtendedImage> images)
 		{
@@ -486,17 +487,21 @@ namespace TelegramNeuralServerAPI
 				}
 
 				DrawText(personNumber.ToString(), currentImage, assistant.thickness, assistant.borderThickness, assistant.textPoint);
-			}			
+			}
 		}
 		private static void CropProcess(PersonProcess? person, int imageNumber, int _, List<Image<Rgb, byte>> list, List<ExtendedImage> images)
 		{
 			if (person != null)
 			{
-				ProcessAssistant assistant = new(person.boundingBox.topLeft, person.boundingBox.bottomRight);
-				images[imageNumber].ImageInfo.derivedImages.Add(list.Count, person);
+				ExtendedImage currentImage = images[imageNumber];
+				ProcessAssistant assistant = new(person.boundingBox);
+				currentImage.ImageInfo.derivedImages.Add(list.Count, person);
 
-				using Mat mat = new(images[imageNumber].Mat, new Rectangle(assistant.topLeft.x, assistant.topLeft.y, assistant.width, assistant.height));
-				list.Add(mat.ToImage<Rgb, byte>());
+				using Mat mat = new(currentImage.Mat, new Rectangle(assistant.topLeft.x, assistant.topLeft.y, assistant.width, assistant.height));
+				using Mat matRgb = new();
+				CvInvoke.CvtColor(mat, matRgb, ColorConversion.Rgb2Bgr);
+
+				list.Add(matRgb.ToImage<Rgb, byte>());
 			}
 			//TODO: check for no-data crop
 		}

@@ -150,7 +150,7 @@ namespace TelegramNeuralServerAPI
 
 						ActOnArray<PersonProcess>(array, (process, imgN, perN) => FaceProcess(process, imgN, perN, user, images, true), true);
 
-						await ThrowImages(user, images);
+						await ThrowImages(user, images, false);
 					}
 					return;
 				//recognize
@@ -266,7 +266,7 @@ namespace TelegramNeuralServerAPI
 			return new(matRgb, new("photo_" + DateTime.Now.ToString("MM_d_yyyy_H_mm_ss_") + file.FilePath!.Split(".").Last()));
 		}
 
-		private async Task ThrowImages(LocalUserConfig user, List<ExtendedImage> images)
+		private async Task ThrowImages(LocalUserConfig user, List<ExtendedImage> images, bool flush = true)
 		{
 			List<ExtendedImage> bulk = [];
 			List<ExtendedImage> bulkInvalid = [];
@@ -314,7 +314,7 @@ namespace TelegramNeuralServerAPI
 			}
 
 			DisposeEnumerable(images);
-			ClearImagesList(user);
+			if (flush) { ClearImagesList(user); }
 		}
 		private async Task ThrowSingle(LocalUserConfig user, ExtendedImage image)
 		{

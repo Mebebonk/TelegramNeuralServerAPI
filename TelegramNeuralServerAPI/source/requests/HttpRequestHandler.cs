@@ -21,8 +21,8 @@ namespace TelegramNeuralServerAPI
 		{
 			using HttpRequestMessage request = new(HttpMethod.Post, _url + localRequest.urlMod);
 
-			string parsedImageList = JsonSerializer.Serialize(localRequest, options);
-
+			string parsedImageList = JsonSerializer.Serialize(localRequest, options);			
+			
 			request.Content = new StringContent(parsedImageList, new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"));
 
 			HttpResponseMessage response = await client.SendAsync(request);

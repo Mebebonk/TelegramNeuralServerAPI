@@ -23,6 +23,7 @@ using SettingsGenerator;
 using Emgu.CV.Util;
 using Emgu.CV.CvEnum;
 using System.Data.SqlTypes;
+using System.Transactions;
 
 namespace TelegramNeuralServerAPI
 {
@@ -123,7 +124,7 @@ namespace TelegramNeuralServerAPI
 						ActOnArray<PersonProcess>(bodyDetectorArray, (process, imageN, personN) => CropProcess(process, imageN, personN, croppedImages, images), true);
 
 						if (croppedImages.Count == 0) { await ThrowImages(user, images); return; }
-					
+
 						string response = await requestHandler.LaunchProcess(new ReIdRequest([.. croppedImages.TakeLast(croppedImages.Count - 1).Select((a) => new LocalImage(a))], new(croppedImages.First())));
 
 						DisposeEnumerable(croppedImages);
@@ -197,18 +198,9 @@ namespace TelegramNeuralServerAPI
 						if (user.images.Count == 0) { _ = botClient.SendTextMessageAsync(update.Message.From!.Id, "No images found!", cancellationToken: cancellationToken); return; }
 
 						List<ExtendedImage> images = [];
+
 						await PrepareImages(user, images);
-
-						if (images.Count > 1)
-						{
-							await BulkThrow(user, images, "");
-						}
-						else
-						{
-							await ThrowSingle(user, images[0]);
-						}
-
-						DisposeEnumerable(images);
+						await ThrowImages(user, images, false);
 					}
 					return;
 				//help
@@ -216,7 +208,7 @@ namespace TelegramNeuralServerAPI
 
 					_ = botClient.SendTextMessageAsync(update.Message.From!.Id, BotGlobals.helpText);
 
-					return;
+					return;			
 			}
 
 		}
@@ -261,7 +253,7 @@ namespace TelegramNeuralServerAPI
 			using Mat matRgb = new();
 
 			CvInvoke.Imdecode(stream.ToArray(), Emgu.CV.CvEnum.ImreadModes.Color, mat);
-			CvInvoke.CvtColor(mat, matRgb, Emgu.CV.CvEnum.ColorConversion.Rgb2Bgr);
+			CvInvoke.CvtColor(mat, matRgb, Emgu.CV.CvEnum.ColorConversion.Bgr2Rgb);
 
 			return new(matRgb, new("photo_" + DateTime.Now.ToString("MM_d_yyyy_H_mm_ss_") + file.FilePath!.Split(".").Last()));
 		}
